@@ -6,9 +6,10 @@ import { ShieldAlert, CheckCircle2, Info, Volume2, VolumeX } from 'lucide-react'
 interface ResponseDisplayProps {
   response: string | null;
   isLoading: boolean;
+  isMinimal?: boolean;
 }
 
-export const ResponseDisplay = ({ response, isLoading }: ResponseDisplayProps) => {
+export const ResponseDisplay = ({ response, isLoading, isMinimal }: ResponseDisplayProps) => {
   const [isSpeaking, setIsSpeaking] = useState(false);
 
   const handleSpeak = () => {
@@ -32,6 +33,14 @@ export const ResponseDisplay = ({ response, isLoading }: ResponseDisplayProps) =
   };
 
   if (!response && !isLoading) return null;
+
+  if (isMinimal) {
+    return (
+      <div className="markdown-body text-slate-600 text-sm">
+        <Markdown>{response || ""}</Markdown>
+      </div>
+    );
+  }
 
   return (
     <motion.div

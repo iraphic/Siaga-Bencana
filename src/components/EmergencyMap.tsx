@@ -201,7 +201,7 @@ export const EmergencyMap = ({
           </div>
         )}
       </MapContainer>
-      <div className="absolute top-4 right-4 z-[1000] bg-white/90 backdrop-blur p-2 rounded-lg shadow-md border border-slate-200 text-[10px] uppercase tracking-wider font-bold text-slate-500">
+      <div className="absolute top-4 right-4 z-10 bg-white/90 backdrop-blur p-2 rounded-lg shadow-md border border-slate-200 text-[10px] uppercase tracking-wider font-bold text-slate-500 pointer-events-none">
         Live Disaster Map
       </div>
     </div>

@@ -7,6 +7,7 @@ import { EmergencyInput } from './components/EmergencyInput';
 import { ResponseDisplay } from './components/ResponseDisplay';
 import { QuickGuides } from './components/QuickGuides';
 import { getEmergencyAdvice } from './services/geminiService';
+import { LocalEmergencyContacts } from './components/LocalEmergencyContacts';
 import { cn } from './utils/cn';
 
 // Haversine formula to calculate distance in km
@@ -21,6 +22,13 @@ const getDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => 
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   return R * c;
 };
+
+export interface ChatMessage {
+  id: string;
+  role: 'user' | 'assistant';
+  content: string;
+  timestamp: Date;
+}
 
 export default function App() {
   const [userLocation, setUserLocation] = useState<[number, number] | null>(null);
@@ -38,6 +46,9 @@ export default function App() {
   const [showInstallBanner, setShowInstallBanner] = useState(false);
   const [selectedType, setSelectedType] = useState<string>('All');
   const [historyEvents, setHistoryEvents] = useState<DisasterEvent[]>([]);
+  const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
+  const [loadingTime, setLoadingTime] = useState(0);
+  const [showQuickTips, setShowQuickTips] = useState(false);
   const seenEventIds = React.useRef<Set<string>>(new Set());
   const isFirstLoad = React.useRef<boolean>(true);
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
@@ -270,7 +281,67 @@ export default function App() {
     }
   }, [userLocation, events]);
 
+  useEffect(() => {
+    let interval: any;
+    if (isLoading) {
+      setLoadingTime(0);
+      setShowQuickTips(false);
+      interval = setInterval(() => {
+        setLoadingTime(prev => {
+          const next = prev + 1;
+          if (next >= 5) {
+            setShowQuickTips(true);
+          }
+          return next;
+        });
+      }, 1000);
+    } else {
+      setLoadingTime(0);
+      setShowQuickTips(false);
+      if (interval) clearInterval(interval);
+    }
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [isLoading]);
+
+  const handleQuickAdvice = () => {
+    const quickAdvice = `### 🚨 Panduan Darurat Dasar (Respon Cepat)
+
+Sambil menunggu analisis mendalam dari AI, berikut adalah langkah keselamatan standar:
+
+1. **Tetap Tenang**: Jangan panik, kepanikan akan menghambat pengambilan keputusan yang tepat.
+2. **Cari Tempat Aman**: 
+   - **Gempa**: Berlindung di bawah meja kuat atau lindungi kepala.
+   - **Banjir**: Segera menuju ke tempat yang lebih tinggi.
+   - **Kebakaran**: Keluar dari bangunan melalui jalur evakuasi, jangan gunakan lift.
+3. **Hubungi Nomor Darurat**: Segera hubungi **112** (Layanan Darurat Terpadu) atau nomor spesifik lainnya di sidebar.
+4. **Pantau Informasi Resmi**: Ikuti arahan dari petugas di lapangan atau radio/TV berita.
+
+*AI masih memproses detail spesifik untuk situasi Anda...*`;
+
+    setResponse(quickAdvice);
+    setIsLoading(false);
+    setShowQuickTips(false);
+    
+    const assistantMsg: ChatMessage = {
+      id: `quick-${Date.now()}`,
+      role: 'assistant',
+      content: quickAdvice,
+      timestamp: new Date()
+    };
+    setChatHistory(prev => [...prev, assistantMsg]);
+  };
+
   const handleSend = async (text: string) => {
+    const userMsg: ChatMessage = {
+      id: Date.now().toString(),
+      role: 'user',
+      content: text,
+      timestamp: new Date()
+    };
+    
+    setChatHistory(prev => [...prev, userMsg]);
     setIsLoading(true);
     setResponse(null);
     setActiveTab('chat');
@@ -278,6 +349,14 @@ export default function App() {
     const locationObj = userLocation ? { lat: userLocation[0], lng: userLocation[1] } : undefined;
     const advice = await getEmergencyAdvice(text, locationObj);
     
+    const assistantMsg: ChatMessage = {
+      id: (Date.now() + 1).toString(),
+      role: 'assistant',
+      content: advice,
+      timestamp: new Date()
+    };
+    
+    setChatHistory(prev => [...prev, assistantMsg]);
     setResponse(advice);
     setIsLoading(false);
   };
@@ -634,7 +713,79 @@ export default function App() {
               <EmergencyInput onSend={handleSend} isLoading={isLoading} />
             </section>
 
+            {/* Chat History */}
+            {chatHistory.length > 0 && (
+              <div className="space-y-4 mt-8">
+                {chatHistory.slice(0, -1).map((msg) => (
+                  <div 
+                    key={msg.id} 
+                    className={cn(
+                      "flex flex-col max-w-[85%] p-4 rounded-2xl text-sm",
+                      msg.role === 'user' 
+                        ? "bg-slate-100 text-slate-700 self-end ml-auto rounded-tr-none" 
+                        : "bg-white border border-slate-100 text-slate-600 self-start mr-auto rounded-tl-none shadow-sm"
+                    )}
+                  >
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-[10px] font-black uppercase tracking-widest opacity-40">
+                        {msg.role === 'user' ? 'Anda' : 'Asisten AI'}
+                      </span>
+                      <span className="text-[9px] opacity-30 font-medium">
+                        {msg.timestamp.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}
+                      </span>
+                    </div>
+                    <div className="markdown-body">
+                      {msg.role === 'assistant' ? (
+                        <ResponseDisplay response={msg.content} isLoading={false} isMinimal />
+                      ) : (
+                        <p>{msg.content}</p>
+                      )}
+                    </div>
+                  </div>
+                ))}
+                
+                {/* Current User Input (Last message if it's from user) */}
+                {chatHistory[chatHistory.length - 1]?.role === 'user' && (
+                  <div className="flex flex-col max-w-[85%] p-4 rounded-2xl text-sm bg-slate-100 text-slate-700 self-end ml-auto rounded-tr-none">
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-[10px] font-black uppercase tracking-widest opacity-40">Anda</span>
+                      <span className="text-[9px] opacity-30 font-medium">
+                        {chatHistory[chatHistory.length - 1].timestamp.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}
+                      </span>
+                    </div>
+                    <p>{chatHistory[chatHistory.length - 1].content}</p>
+                  </div>
+                )}
+              </div>
+            )}
+
             <ResponseDisplay response={response} isLoading={isLoading} />
+            
+            <AnimatePresence>
+              {isLoading && showQuickTips && (
+                <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: 10 }}
+                  className="flex flex-col items-center gap-3 p-6 bg-red-50 border border-red-100 rounded-3xl mt-4"
+                >
+                  <div className="flex items-center gap-2 text-red-600">
+                    <Zap size={18} className="animate-pulse" />
+                    <p className="text-xs font-black uppercase tracking-widest">Koneksi Lambat?</p>
+                  </div>
+                  <p className="text-[11px] text-red-700 font-medium text-center">
+                    AI membutuhkan waktu lebih lama untuk menganalisis. Ingin panduan keselamatan dasar segera?
+                  </p>
+                  <button
+                    onClick={handleQuickAdvice}
+                    className="px-6 py-2.5 bg-red-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-red-700 transition-colors shadow-lg shadow-red-600/20 flex items-center gap-2"
+                  >
+                    <Shield size={14} />
+                    Dapatkan Panduan Cepat
+                  </button>
+                </motion.div>
+              )}
+            </AnimatePresence>
             
             {!response && !isLoading && (
               <>
@@ -666,6 +817,10 @@ export default function App() {
                   </div>
                 </div>
               </>
+            )}
+
+            {userLocation && (
+              <LocalEmergencyContacts lat={userLocation[0]} lng={userLocation[1]} />
             )}
           </div>
 
