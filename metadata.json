@@ -1,5 +1,5 @@
 {
-  "name": "SiagaBencana AI",
+  "name": "SiagaBencana",
   "description": "Asisten darurat cerdas untuk kesiapsiagaan bencana. Memberikan panduan taktis real-time dan peta peringatan dini.",
   "requestFramePermissions": ["geolocation", "microphone"]
 }

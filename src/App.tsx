@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Shield, Map as MapIcon, MessageSquare, AlertCircle, Info, ChevronRight, Zap, Navigation, Smartphone, Download } from 'lucide-react';
+import { Shield, Map as MapIcon, MessageSquare, AlertCircle, Info, ChevronRight, Zap, Navigation, Smartphone, Download, Share2, History, Filter, Maximize2, Minimize2 } from 'lucide-react';
 import { EmergencyMap, DisasterEvent } from './components/EmergencyMap';
 import { BMKGGisInfo } from './components/BMKGGisInfo';
 import { EmergencyInput } from './components/EmergencyInput';
@@ -28,6 +28,7 @@ export default function App() {
   const [isLoading, setIsLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<'chat' | 'map'>('chat');
   const [events, setEvents] = useState<DisasterEvent[]>([]);
+  const [isMapFullscreen, setIsMapFullscreen] = useState(false);
   const [bmkgGempa, setBmkgGempa] = useState<any>(null);
   const [nearbyEvents, setNearbyEvents] = useState<DisasterEvent[]>([]);
   const [showGempaModal, setShowGempaModal] = useState(false);
@@ -35,6 +36,39 @@ export default function App() {
   const [feedbackText, setFeedbackText] = useState('');
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [showInstallBanner, setShowInstallBanner] = useState(false);
+  const [selectedType, setSelectedType] = useState<string>('All');
+  const [historyEvents, setHistoryEvents] = useState<DisasterEvent[]>([]);
+  const seenEventIds = React.useRef<Set<string>>(new Set());
+  const isFirstLoad = React.useRef<boolean>(true);
+  const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
+
+  useEffect(() => {
+    if ("Notification" in window && Notification.permission === "default") {
+      Notification.requestPermission();
+    }
+  }, []);
+
+  const notifyUser = (event: DisasterEvent) => {
+    if (!("Notification" in window) || Notification.permission !== "granted") return;
+    
+    const isSignificantEarthquake = event.type === 'Earthquake' && event.severity === 'High';
+    const title = isSignificantEarthquake ? `🚨 GEMPA SIGNIFIKAN: ${event.title}` : `WASPADA: ${event.title}`;
+    
+    const notification = new Notification(title, {
+      body: `${event.location}. Waktu: ${event.time}. Segera cari tempat aman jika Anda merasakan guncangan kuat.`,
+      icon: 'https://cdn-icons-png.flaticon.com/512/595/595067.png', // Warning icon
+      tag: event.id,
+      requireInteraction: isSignificantEarthquake,
+    });
+
+    notification.onclick = () => {
+      window.focus();
+      setActiveTab('map');
+      if (isSignificantEarthquake) {
+        setShowGempaModal(true);
+      }
+    };
+  };
 
   useEffect(() => {
     const handler = (e: any) => {
@@ -98,15 +132,17 @@ export default function App() {
               if (gempa) {
                 setBmkgGempa(gempa);
                 const [lat, lng] = gempa.Coordinates.split(',').map(Number);
+                const eventId = `bmkg-${gempa.Tanggal}-${gempa.Jam}-${gempa.Magnitude}`;
                 allEvents.push({
-                  id: 'bmkg-auto',
+                  id: eventId,
                   title: `Gempa M ${gempa.Magnitude}`,
                   type: 'Earthquake',
                   lat: lat,
                   lng: lng,
                   severity: parseFloat(gempa.Magnitude) >= 5 ? 'High' : 'Medium',
                   time: `${gempa.Tanggal} ${gempa.Jam}`,
-                  location: gempa.Wilayah
+                  location: gempa.Wilayah,
+                  source: 'BMKG'
                 });
               }
             } catch (parseError) {
@@ -133,7 +169,8 @@ export default function App() {
                   lng: f.geometry.coordinates[0],
                   severity: f.properties.severitydata?.severity || 'Unknown',
                   time: f.properties.fromdate ? new Date(f.properties.fromdate).toLocaleString('id-ID') : 'Tidak diketahui',
-                  location: f.properties.country || 'Global'
+                  location: f.properties.country || 'Global',
+                  source: 'GDACS'
                 }));
                 allEvents = [...allEvents, ...realEvents];
               }
@@ -172,13 +209,53 @@ export default function App() {
         }
 
         setEvents(allEvents);
+        setLastUpdated(new Date());
+
+        // Notify for new events
+        allEvents.forEach(event => {
+          if (!seenEventIds.current.has(event.id)) {
+            seenEventIds.current.add(event.id);
+            // Only notify if it's not the first load
+            if (!isFirstLoad.current) {
+               notifyUser(event);
+            }
+          }
+        });
+        
+        isFirstLoad.current = false;
+
+        // 4. Fetch History (Simulated or from GDACS archives)
+        // For now, let's take some older events or simulate
+        const history = [
+          {
+            id: 'hist-1',
+            title: 'Banjir Tahunan Jakarta',
+            type: 'Flood',
+            lat: -6.1751,
+            lng: 106.8650,
+            severity: 'High',
+            time: 'Januari 2024',
+            location: 'Jakarta Pusat'
+          },
+          {
+            id: 'hist-2',
+            title: 'Gempa Cianjur',
+            type: 'Earthquake',
+            lat: -6.8175,
+            lng: 107.1427,
+            severity: 'High',
+            time: 'November 2022',
+            location: 'Cianjur, Jawa Barat'
+          }
+        ];
+        setHistoryEvents(history);
       } catch (error) {
         console.error("Error fetching disasters:", error);
       }
     };
 
     fetchDisasters();
-    const interval = setInterval(fetchDisasters, 60000);
+    const interval = setInterval(fetchDisasters, 30000); // 30 seconds for real-time
     return () => clearInterval(interval);
   }, []);
 
@@ -213,6 +290,34 @@ export default function App() {
     setShowFeedbackModal(false);
     setFeedbackText('');
   };
+
+  const handleShare = async (event: DisasterEvent) => {
+    const shareData = {
+      title: `Waspada: ${event.title}`,
+      text: `Peringatan Bencana ${event.type} di ${event.location}. Waktu: ${event.time}. Pantau terus di SiagaBencana.`,
+      url: window.location.href,
+    };
+
+    try {
+      if (navigator.share) {
+        await navigator.share(shareData);
+      } else {
+        await navigator.clipboard.writeText(`${shareData.title}\n${shareData.text}\n${shareData.url}`);
+        alert('Info bencana disalin ke clipboard!');
+      }
+    } catch (err: any) {
+      if (err.name !== 'AbortError') {
+        console.error('Error sharing:', err);
+      }
+    }
+  };
+
+  const disasterTypes = ['All', 'Gempa BMKG', ...Array.from(new Set(events.filter(e => e.source !== 'BMKG').map(e => e.type)))];
+  const filteredEvents = selectedType === 'All' 
+    ? events 
+    : selectedType === 'Gempa BMKG'
+      ? events.filter(e => e.source === 'BMKG')
+      : events.filter(e => e.type === selectedType);
 
   return (
     <div className="min-h-screen bg-slate-50 font-sans text-slate-900 pb-24 md:pb-8">
@@ -299,7 +404,10 @@ export default function App() {
 
       {/* Floating Feedback Button */}
       <button
-        onClick={() => setShowFeedbackModal(true)}
+        onClick={() => {
+          setShowFeedbackModal(true);
+          setShowInstallBanner(true);
+        }}
         className="fixed bottom-6 right-6 z-[90] w-14 h-14 bg-red-600 text-white rounded-full flex items-center justify-center shadow-2xl shadow-red-600/40 hover:scale-110 active:scale-95 transition-all group"
         title="Kirim Saran"
       >
@@ -402,6 +510,7 @@ export default function App() {
                 <span id="gempa-banner">
                   📍 <b>Gempa Terkini (BMKG):</b> Mag {bmkgGempa.Magnitude}, {bmkgGempa.Wilayah}. <span className="underline decoration-white/40 underline-offset-2 ml-1">Klik untuk detail</span>
                 </span>
+                <span className="text-[9px] opacity-60 ml-2 whitespace-nowrap">Update: {lastUpdated.toLocaleTimeString('id-ID')}</span>
               </div>
               <button 
                 onClick={(e) => {
@@ -432,7 +541,10 @@ export default function App() {
           
           <div className="hidden md:flex items-center gap-6">
             <button 
-              onClick={() => setActiveTab('chat')}
+              onClick={() => {
+                setActiveTab('chat');
+                setShowInstallBanner(true);
+              }}
               className={cn(
                 "text-sm font-bold uppercase tracking-widest transition-colors",
                 activeTab === 'chat' ? "text-red-600" : "text-slate-400 hover:text-slate-600"
@@ -455,6 +567,28 @@ export default function App() {
             <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
             <span className="text-[10px] font-bold uppercase tracking-wider">Sistem Aktif</span>
           </div>
+
+          {/* Notification Toggle */}
+          {("Notification" in window) && (
+            <button 
+              onClick={() => {
+                if (Notification.permission === 'default') {
+                  Notification.requestPermission();
+                } else if (Notification.permission === 'denied') {
+                  alert("Notifikasi diblokir. Silakan aktifkan di pengaturan browser Anda untuk menerima peringatan gempa.");
+                }
+              }}
+              className={cn(
+                "p-2 rounded-xl transition-all",
+                Notification.permission === 'granted' 
+                  ? "text-emerald-600 bg-emerald-50" 
+                  : "text-slate-400 bg-slate-100 hover:text-red-600 hover:bg-red-50"
+              )}
+              title={Notification.permission === 'granted' ? "Notifikasi Aktif" : "Aktifkan Notifikasi Bahaya"}
+            >
+              <Zap size={18} className={Notification.permission === 'granted' ? "fill-emerald-600" : ""} />
+            </button>
+          )}
         </div>
       </header>
 
@@ -462,7 +596,10 @@ export default function App() {
         {/* Mobile Tab Switcher */}
         <div className="flex md:hidden bg-white p-1 rounded-2xl border border-slate-200 mb-8 shadow-sm">
           <button
-            onClick={() => setActiveTab('chat')}
+            onClick={() => {
+              setActiveTab('chat');
+              setShowInstallBanner(true);
+            }}
             className={cn(
               "flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-bold transition-all",
               activeTab === 'chat' ? "bg-red-600 text-white shadow-lg shadow-red-600/20" : "text-slate-500"
@@ -540,12 +677,49 @@ export default function App() {
             <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="font-black text-slate-900 uppercase tracking-wider text-xs">Peta Peringatan Dini</h3>
-                <div className="flex items-center gap-1.5">
-                  <div className="w-1.5 h-1.5 bg-red-500 rounded-full animate-ping" />
-                  <span className="text-[10px] font-bold text-red-500 uppercase tracking-widest">Live Updates</span>
+                <div className="flex items-center gap-3">
+                  <button 
+                    onClick={() => setIsMapFullscreen(!isMapFullscreen)}
+                    className="flex items-center gap-1.5 text-[10px] font-bold text-slate-400 hover:text-red-600 transition-colors uppercase tracking-widest"
+                    title={isMapFullscreen ? "Keluar Fullscreen" : "Fullscreen Map"}
+                  >
+                    {isMapFullscreen ? <Minimize2 size={14} /> : <Maximize2 size={14} />}
+                    {isMapFullscreen ? "Normal" : "Full Screen"}
+                  </button>
+                  <div className="flex items-center gap-1.5">
+                    <div className="w-1.5 h-1.5 bg-red-500 rounded-full animate-ping" />
+                    <span className="text-[10px] font-bold text-red-500 uppercase tracking-widest">Live Updates</span>
+                  </div>
                 </div>
               </div>
-              <EmergencyMap userLocation={userLocation} events={events} />
+
+              {/* Filter Pills */}
+              <div className="flex items-center gap-2 mb-4 overflow-x-auto pb-2 scrollbar-hide">
+                <Filter size={14} className="text-slate-400 shrink-0" />
+                {disasterTypes.map(type => (
+                  <button
+                    key={type}
+                    onClick={() => setSelectedType(type)}
+                    className={cn(
+                      "px-3 py-1 rounded-full text-[10px] font-bold whitespace-nowrap transition-all border",
+                      selectedType === type 
+                        ? "bg-red-600 border-red-600 text-white shadow-md shadow-red-600/20" 
+                        : "bg-white border-slate-200 text-slate-500 hover:border-red-200"
+                    )}
+                  >
+                    {type}
+                  </button>
+                ))}
+              </div>
+
+              <EmergencyMap 
+                userLocation={userLocation} 
+                events={filteredEvents} 
+                onShare={handleShare}
+                className={isMapFullscreen ? "fixed inset-0 z-[1000] h-screen w-screen rounded-none" : ""}
+                isFullscreen={isMapFullscreen}
+                onToggleFullscreen={() => setIsMapFullscreen(false)}
+              />
               <BMKGGisInfo userLocation={userLocation} />
               <div className="mt-4 space-y-3">
                 <div className={cn(
@@ -566,8 +740,8 @@ export default function App() {
                 </div>
                 
                 {/* List of disasters */}
-                <div className="space-y-2 max-h-[200px] overflow-y-auto pr-1">
-                  {events.map((event) => {
+                <div className="space-y-2 max-h-[300px] overflow-y-auto pr-1">
+                  {filteredEvents.length > 0 ? filteredEvents.map((event) => {
                     const dist = userLocation ? getDistance(userLocation[0], userLocation[1], event.lat, event.lng) : null;
                     const isNearby = dist !== null && dist <= 5;
 
@@ -593,10 +767,45 @@ export default function App() {
                             </div>
                           </div>
                         </div>
-                        <ChevronRight size={14} className="text-slate-300 group-hover:text-red-400 transition-colors" />
+                        <div className="flex items-center gap-2">
+                          <button 
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleShare(event);
+                            }}
+                            className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                            title="Bagikan Info"
+                          >
+                            <Share2 size={14} />
+                          </button>
+                          <ChevronRight size={14} className="text-slate-300 group-hover:text-red-400 transition-colors" />
+                        </div>
                       </div>
                     );
-                  })}
+                  }) : (
+                    <div className="text-center py-8">
+                      <p className="text-xs text-slate-400 font-medium italic">Tidak ada bencana tipe ini.</p>
+                    </div>
+                  )}
+                </div>
+
+                {/* History Section */}
+                <div className="pt-4 border-t border-slate-100">
+                  <h4 className="flex items-center gap-2 text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">
+                    <History size={12} />
+                    Riwayat Bencana Terdekat
+                  </h4>
+                  <div className="space-y-2">
+                    {historyEvents.map((hist) => (
+                      <div key={hist.id} className="p-3 bg-slate-50/50 border border-slate-100 rounded-xl flex items-center justify-between">
+                        <div>
+                          <p className="text-[10px] font-bold text-slate-700">{hist.title}</p>
+                          <p className="text-[9px] text-slate-400">{hist.time} • {hist.location}</p>
+                        </div>
+                        <span className="text-[8px] font-black uppercase tracking-tighter text-slate-300">{hist.type}</span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </div>
             </div>
