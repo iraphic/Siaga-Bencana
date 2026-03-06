@@ -1015,9 +1015,15 @@ Sambil menunggu analisis mendalam dari AI, berikut adalah langkah keselamatan st
       {/* Footer / Disclaimer */}
       <footer className="max-w-5xl mx-auto px-4 py-12 border-t border-slate-200 mt-12">
         <div className="flex flex-col md:flex-row justify-between items-center gap-6">
-          <div className="flex items-center gap-2 opacity-50">
-            <Shield size={16} />
-            <span className="text-[10px] font-black uppercase tracking-[0.2em]">SiagaBencana © 2026</span>
+          <div className="flex flex-col gap-2">
+            <div className="flex items-center gap-2 opacity-50">
+              <Shield size={16} />
+              <span className="text-[10px] font-black uppercase tracking-[0.2em]">SiagaBencana © 2026</span>
+            </div>
+            <div className="flex items-center gap-3 text-[9px] font-bold text-slate-400 uppercase tracking-widest">
+              <span className="bg-slate-100 px-2 py-0.5 rounded text-slate-600">v1.4.2-stable</span>
+              <span>Patch: 6 Mar 2026, 11:52</span>
+            </div>
           </div>
           <div className="flex items-center gap-2">
             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Idea Apps by</span>
