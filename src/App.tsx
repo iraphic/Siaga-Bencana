@@ -32,6 +32,7 @@ export interface ChatMessage {
 
 export default function App() {
   const [userLocation, setUserLocation] = useState<[number, number] | null>(null);
+  const [isFetchingLocation, setIsFetchingLocation] = useState(false);
   const [response, setResponse] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<'chat' | 'map'>('chat');
@@ -52,6 +53,30 @@ export default function App() {
   const seenEventIds = React.useRef<Set<string>>(new Set());
   const isFirstLoad = React.useRef<boolean>(true);
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
+
+  const fetchLocation = () => {
+    if (navigator.geolocation) {
+      setIsFetchingLocation(true);
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          setUserLocation([position.coords.latitude, position.coords.longitude]);
+          setIsFetchingLocation(false);
+        },
+        (error) => {
+          console.error("Error getting location:", error);
+          setIsFetchingLocation(false);
+          if (error.code === 1) {
+            alert("Izin lokasi ditolak. Silakan aktifkan izin lokasi di browser Anda.");
+          } else {
+            alert("Gagal mendapatkan lokasi. Pastikan GPS Anda aktif.");
+          }
+        },
+        { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+      );
+    } else {
+      alert("Browser Anda tidak mendukung geolokasi.");
+    }
+  };
 
   useEffect(() => {
     if ("Notification" in window && Notification.permission === "default") {
@@ -117,16 +142,7 @@ export default function App() {
   };
 
   useEffect(() => {
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          setUserLocation([position.coords.latitude, position.coords.longitude]);
-        },
-        (error) => {
-          console.error("Error getting location:", error);
-        }
-      );
-    }
+    fetchLocation();
 
     const fetchDisasters = async () => {
       try {
@@ -725,9 +741,24 @@ Sambil menunggu analisis mendalam dari AI, berikut adalah langkah keselamatan st
             activeTab === 'map' && "hidden lg:block"
           )}>
             <section>
-              <div className="mb-6">
-                <h2 className="text-3xl font-black tracking-tight text-slate-900">Butuh Bantuan Segera?</h2>
-                <p className="text-slate-500 font-medium">Jelaskan situasi Anda, AI kami akan memberikan panduan taktis.</p>
+              <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-6">
+                <div>
+                  <h2 className="text-3xl font-black tracking-tight text-slate-900">Butuh Bantuan Segera?</h2>
+                  <p className="text-slate-500 font-medium">Jelaskan situasi Anda, AI kami akan memberikan panduan taktis.</p>
+                </div>
+                <button
+                  onClick={fetchLocation}
+                  disabled={isFetchingLocation}
+                  className={cn(
+                    "flex items-center gap-2 px-4 py-2.5 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all border shrink-0",
+                    userLocation 
+                      ? "bg-emerald-50 border-emerald-100 text-emerald-600 hover:bg-emerald-100" 
+                      : "bg-red-600 border-red-600 text-white hover:bg-red-700 shadow-lg shadow-red-600/20"
+                  )}
+                >
+                  <Navigation size={14} className={cn(isFetchingLocation && "animate-spin")} />
+                  {isFetchingLocation ? "Mencari..." : userLocation ? "Lokasi Aktif" : "Aktifkan Lokasi"}
+                </button>
               </div>
               <EmergencyInput onSend={handleSend} isLoading={isLoading} />
             </section>
@@ -836,6 +867,20 @@ Sambil menunggu analisis mendalam dari AI, berikut adalah langkah keselamatan st
                   </div>
                 </div>
               </>
+            )}
+
+            {!userLocation && !isLoading && (
+              <div className="p-6 bg-slate-50 border border-dashed border-slate-200 rounded-3xl text-center">
+                <Navigation size={24} className="mx-auto text-slate-300 mb-3" />
+                <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-1">Lokasi Belum Aktif</p>
+                <p className="text-[10px] text-slate-400 font-medium mb-4">Aktifkan lokasi untuk melihat nomor darurat lokal dan bahaya di sekitar Anda secara real-time.</p>
+                <button 
+                  onClick={fetchLocation}
+                  className="px-6 py-2 bg-white border border-slate-200 rounded-xl text-[10px] font-black uppercase tracking-widest text-slate-600 hover:text-red-600 hover:border-red-200 transition-all shadow-sm"
+                >
+                  Ambil Lokasi Sekarang
+                </button>
+              </div>
             )}
 
             {userLocation && (
