@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Shield, Map as MapIcon, MessageSquare, AlertCircle, Info, ChevronRight, Zap, Navigation } from 'lucide-react';
+import { Shield, Map as MapIcon, MessageSquare, AlertCircle, Info, ChevronRight, Zap, Navigation, Smartphone, Download } from 'lucide-react';
 import { EmergencyMap, DisasterEvent } from './components/EmergencyMap';
+import { BMKGGisInfo } from './components/BMKGGisInfo';
 import { EmergencyInput } from './components/EmergencyInput';
 import { ResponseDisplay } from './components/ResponseDisplay';
 import { QuickGuides } from './components/QuickGuides';
@@ -32,6 +33,43 @@ export default function App() {
   const [showGempaModal, setShowGempaModal] = useState(false);
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
   const [feedbackText, setFeedbackText] = useState('');
+  const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+  const [showInstallBanner, setShowInstallBanner] = useState(false);
+
+  useEffect(() => {
+    const handler = (e: any) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+      setShowInstallBanner(true);
+    };
+
+    window.addEventListener('beforeinstallprompt', handler);
+
+    // Show banner after 5 seconds if not installed (fallback simulation)
+    const timer = setTimeout(() => {
+      if (!window.matchMedia('(display-mode: standalone)').matches && !deferredPrompt) {
+        setShowInstallBanner(true);
+      }
+    }, 5000);
+
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handler);
+      clearTimeout(timer);
+    };
+  }, [deferredPrompt]);
+
+  const handleInstallClick = async () => {
+    if (deferredPrompt) {
+      deferredPrompt.prompt();
+      const { outcome } = await deferredPrompt.userChoice;
+      console.log(`User response to the install prompt: ${outcome}`);
+      setDeferredPrompt(null);
+    } else {
+      // Fallback for iOS or other browsers
+      alert("Untuk menginstall di iPhone: Klik tombol 'Share' lalu pilih 'Add to Home Screen'.");
+    }
+    setShowInstallBanner(false);
+  };
 
   useEffect(() => {
     if (navigator.geolocation) {
@@ -62,11 +100,13 @@ export default function App() {
                 const [lat, lng] = gempa.Coordinates.split(',').map(Number);
                 allEvents.push({
                   id: 'bmkg-auto',
-                  title: `Gempa M ${gempa.Magnitude} - ${gempa.Wilayah}`,
+                  title: `Gempa M ${gempa.Magnitude}`,
                   type: 'Earthquake',
                   lat: lat,
                   lng: lng,
-                  severity: parseFloat(gempa.Magnitude) >= 5 ? 'High' : 'Medium'
+                  severity: parseFloat(gempa.Magnitude) >= 5 ? 'High' : 'Medium',
+                  time: `${gempa.Tanggal} ${gempa.Jam}`,
+                  location: gempa.Wilayah
                 });
               }
             } catch (parseError) {
@@ -91,7 +131,9 @@ export default function App() {
                   type: f.properties.eventtype || 'Unknown',
                   lat: f.geometry.coordinates[1],
                   lng: f.geometry.coordinates[0],
-                  severity: f.properties.severitydata?.severity || 'Unknown'
+                  severity: f.properties.severitydata?.severity || 'Unknown',
+                  time: f.properties.fromdate ? new Date(f.properties.fromdate).toLocaleString('id-ID') : 'Tidak diketahui',
+                  location: f.properties.country || 'Global'
                 }));
                 allEvents = [...allEvents, ...realEvents];
               }
@@ -106,8 +148,26 @@ export default function App() {
         // 3. Fallback mock if empty
         if (allEvents.length === 0) {
           allEvents = [
-            { id: '1', title: 'Banjir Luapan Sungai (Simulasi)', type: 'Flood', lat: -6.2, lng: 106.8, severity: 'High' },
-            { id: '2', title: 'Peringatan Dini Longsor (Simulasi)', type: 'Landslide', lat: -6.3, lng: 106.9, severity: 'Medium' },
+            { 
+              id: '1', 
+              title: 'Banjir Luapan Sungai (Simulasi)', 
+              type: 'Flood', 
+              lat: -6.2, 
+              lng: 106.8, 
+              severity: 'High',
+              time: new Date().toLocaleString('id-ID'),
+              location: 'Jakarta Timur, DKI Jakarta'
+            },
+            { 
+              id: '2', 
+              title: 'Peringatan Dini Longsor (Simulasi)', 
+              type: 'Landslide', 
+              lat: -6.3, 
+              lng: 106.9, 
+              severity: 'Medium',
+              time: new Date().toLocaleString('id-ID'),
+              location: 'Bogor, Jawa Barat'
+            },
           ];
         }
 
@@ -156,6 +216,43 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-slate-50 font-sans text-slate-900 pb-24 md:pb-8">
+      {/* PWA Install Banner */}
+      <AnimatePresence>
+        {showInstallBanner && (
+          <motion.div
+            initial={{ y: 100, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ y: 100, opacity: 0 }}
+            className="fixed bottom-24 left-4 right-4 z-[100] md:bottom-8 md:left-auto md:right-8 md:w-80 bg-slate-900 text-white p-4 rounded-2xl shadow-2xl flex items-center justify-between gap-4 border border-white/10 backdrop-blur-xl"
+          >
+            <div className="flex items-center gap-3">
+              <div className="bg-red-600 p-2 rounded-xl">
+                <Smartphone size={20} />
+              </div>
+              <div>
+                <p className="text-xs font-black uppercase tracking-widest">Install App</p>
+                <p className="text-[10px] text-slate-400 font-medium">Akses lebih cepat di smartphone</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <button 
+                onClick={() => setShowInstallBanner(false)}
+                className="text-[10px] font-bold text-slate-400 hover:text-white px-2 py-1"
+              >
+                Nanti
+              </button>
+              <button 
+                onClick={handleInstallClick}
+                className="bg-white text-slate-900 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-200 transition-colors flex items-center gap-2"
+              >
+                <Download size={12} />
+                Install
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Feedback Modal */}
       <AnimatePresence>
         {showFeedbackModal && (
@@ -449,6 +546,7 @@ export default function App() {
                 </div>
               </div>
               <EmergencyMap userLocation={userLocation} events={events} />
+              <BMKGGisInfo userLocation={userLocation} />
               <div className="mt-4 space-y-3">
                 <div className={cn(
                   "flex items-start gap-3 p-3 rounded-2xl border transition-colors",

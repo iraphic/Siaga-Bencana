@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import { AlertTriangle, MapPin } from 'lucide-react';
+import { cn } from '../utils/cn';
 
 // Fix Leaflet marker icon issue
 const markerIcon = 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png';
@@ -35,6 +36,8 @@ export interface DisasterEvent {
   lat: number;
   lng: number;
   severity: string;
+  time?: string;
+  location?: string;
 }
 
 export const EmergencyMap = ({ 
@@ -70,10 +73,47 @@ export const EmergencyMap = ({
             icon={getIcon(event.type)}
           >
             <Popup>
-              <div className="p-1">
-                <h3 className="font-bold text-red-600">{event.title}</h3>
-                <p className="text-xs text-slate-600">Tipe: {event.type}</p>
-                <p className="text-xs font-semibold">Tingkat Bahaya: {event.severity}</p>
+              <div className="p-2 min-w-[200px]">
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="bg-red-100 p-1.5 rounded-lg text-red-600">
+                    <AlertTriangle size={16} />
+                  </div>
+                  <h3 className="font-bold text-slate-900 text-sm leading-tight">{event.title}</h3>
+                </div>
+                
+                <div className="space-y-1.5 border-t border-slate-100 pt-2">
+                  <div className="flex items-start gap-2">
+                    <MapPin size={12} className="text-slate-400 mt-0.5 shrink-0" />
+                    <div>
+                      <p className="text-[10px] text-slate-400 uppercase font-black tracking-widest">Lokasi</p>
+                      <p className="text-xs text-slate-700 font-medium">{event.location || 'Tidak diketahui'}</p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-start gap-2">
+                    <div className="w-3 h-3 flex items-center justify-center mt-0.5 shrink-0">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" className="text-slate-400"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                    </div>
+                    <div>
+                      <p className="text-[10px] text-slate-400 uppercase font-black tracking-widest">Waktu Kejadian</p>
+                      <p className="text-xs text-slate-700 font-medium">{event.time || 'Baru saja'}</p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between pt-1">
+                    <span className={cn(
+                      "text-[9px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider",
+                      event.severity === 'High' ? "bg-red-100 text-red-600" : 
+                      event.severity === 'Medium' ? "bg-orange-100 text-orange-600" : 
+                      "bg-blue-100 text-blue-600"
+                    )}>
+                      {event.severity} Risk
+                    </span>
+                    <span className="text-[9px] text-slate-400 font-medium italic">
+                      {event.type}
+                    </span>
+                  </div>
+                </div>
               </div>
             </Popup>
           </Marker>

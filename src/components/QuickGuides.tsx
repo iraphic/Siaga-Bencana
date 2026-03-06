@@ -1,5 +1,5 @@
 import React from 'react';
-import { Waves, Mountain, Flame, Zap, ChevronRight } from 'lucide-react';
+import { Waves, Mountain, Flame, Zap, ChevronRight, Shield } from 'lucide-react';
 import { cn } from '../utils/cn';
 
 const guides = [
@@ -30,6 +30,13 @@ const guides = [
     icon: <Flame size={20} />,
     color: 'bg-red-50 text-red-600',
     steps: ['Tutup hidung/mulut', 'Merangkak di bawah asap', 'Gunakan tangga darurat']
+  },
+  {
+    id: 'perang',
+    title: 'Perang Dunia',
+    icon: <Shield size={20} />,
+    color: 'bg-slate-900 text-white',
+    steps: ['Cari bunker/basement', 'Stok air & makanan', 'Pantau radio darurat']
   }
 ];
 
@@ -37,7 +44,7 @@ export const QuickGuides = () => {
   return (
     <section className="mt-8">
       <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-4">Panduan Cepat Keselamatan</h3>
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
         {guides.map((guide) => (
           <div key={guide.id} className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-all group">
             <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center mb-3 transition-transform group-hover:scale-110", guide.color)}>
