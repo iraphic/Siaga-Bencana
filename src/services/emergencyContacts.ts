@@ -15,24 +15,16 @@ export async function getNearbyEmergencyContacts(lat: number, lng: number): Prom
 }> {
   try {
     // 1. Get Location Name (Reverse Geocoding)
-    const geoRes = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=14`, {
-      headers: {
-        'User-Agent': 'EmergencyApp/1.0'
+    let locationName = "Area Anda";
+    try {
+      const geoRes = await fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lng}&localityLanguage=id`);
+      if (geoRes.ok) {
+        const geoData = await geoRes.json();
+        locationName = geoData.locality || geoData.city || geoData.principalSubdivision || "Area Anda";
       }
-    });
-    const geoData = await geoRes.json();
-    const address = geoData.address || {};
-    
-    // Improved location name extraction
-    const locationName = address.village || 
-                        address.suburb || 
-                        address.city_district || 
-                        address.neighbourhood || 
-                        address.municipality || 
-                        address.city || 
-                        address.town || 
-                        address.county ||
-                        "Area Anda";
+    } catch (e) {
+      console.warn("BigDataCloud geocoding failed, falling back to Gemini");
+    }
 
     // 2. Use Gemini with Google Maps to find specific contacts
     const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });

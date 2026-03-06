@@ -856,23 +856,6 @@ Sambil menunggu analisis mendalam dari AI, berikut adalah langkah keselamatan st
               </>
             )}
 
-            {!userLocation && !isLoading && (
-              <div className="p-6 bg-slate-50 border border-dashed border-slate-200 rounded-3xl text-center">
-                <Navigation size={24} className="mx-auto text-slate-300 mb-3" />
-                <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-1">Lokasi Belum Aktif</p>
-                <p className="text-[10px] text-slate-400 font-medium mb-4">Aktifkan lokasi untuk melihat nomor darurat lokal dan bahaya di sekitar Anda secara real-time.</p>
-                <button 
-                  onClick={fetchLocation}
-                  className="px-6 py-2 bg-white border border-slate-200 rounded-xl text-[10px] font-black uppercase tracking-widest text-slate-600 hover:text-red-600 hover:border-red-200 transition-all shadow-sm"
-                >
-                  Ambil Lokasi Sekarang
-                </button>
-              </div>
-            )}
-
-            {userLocation && (
-              <LocalEmergencyContacts lat={userLocation[0]} lng={userLocation[1]} />
-            )}
           </div>
 
           {/* Sidebar / Map Area */}
@@ -1016,6 +999,24 @@ Sambil menunggu analisis mendalam dari AI, berikut adalah langkah keselamatan st
               </div>
             </div>
 
+            {!userLocation && !isLoading && (
+              <div className="p-6 bg-slate-50 border border-dashed border-slate-200 rounded-3xl text-center">
+                <Navigation size={24} className="mx-auto text-slate-300 mb-3" />
+                <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-1">Lokasi Belum Aktif</p>
+                <p className="text-[10px] text-slate-400 font-medium mb-4">Aktifkan lokasi untuk melihat nomor darurat lokal dan bahaya di sekitar Anda secara real-time.</p>
+                <button 
+                  onClick={fetchLocation}
+                  className="px-6 py-2 bg-white border border-slate-200 rounded-xl text-[10px] font-black uppercase tracking-widest text-slate-600 hover:text-red-600 hover:border-red-200 transition-all shadow-sm"
+                >
+                  Ambil Lokasi Sekarang
+                </button>
+              </div>
+            )}
+
+            {userLocation && (
+              <LocalEmergencyContacts lat={userLocation[0]} lng={userLocation[1]} />
+            )}
+
             <div className="bg-slate-900 text-white p-6 rounded-3xl shadow-xl shadow-slate-900/20">
               <h3 className="font-bold mb-4 flex items-center gap-2">
                 <Shield size={18} className="text-red-500" />
@@ -1053,8 +1054,8 @@ Sambil menunggu analisis mendalam dari AI, berikut adalah langkah keselamatan st
               <span className="text-[10px] font-black uppercase tracking-[0.2em]">SiagaBencana © 2026</span>
             </div>
             <div className="flex items-center gap-3 text-[9px] font-bold text-slate-400 uppercase tracking-widest">
-              <span className="bg-slate-100 px-2 py-0.5 rounded text-slate-600">v1.4.3-stable</span>
-              <span>Patch: 6 Mar 2026, 12:35</span>
+              <span className="bg-slate-100 px-2 py-0.5 rounded text-slate-600">v1.4.4-stable</span>
+              <span>Patch: 6 Mar 2026, 13:25</span>
             </div>
           </div>
           <div className="flex items-center gap-2">
