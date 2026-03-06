@@ -746,19 +746,6 @@ Sambil menunggu analisis mendalam dari AI, berikut adalah langkah keselamatan st
                   <h2 className="text-3xl font-black tracking-tight text-slate-900">Butuh Bantuan Segera?</h2>
                   <p className="text-slate-500 font-medium">Jelaskan situasi Anda, AI kami akan memberikan panduan taktis.</p>
                 </div>
-                <button
-                  onClick={fetchLocation}
-                  disabled={isFetchingLocation}
-                  className={cn(
-                    "flex items-center gap-2 px-4 py-2.5 rounded-2xl text-[10px] font-black uppercase tracking-widest transition-all border shrink-0",
-                    userLocation 
-                      ? "bg-emerald-50 border-emerald-100 text-emerald-600 hover:bg-emerald-100" 
-                      : "bg-red-600 border-red-600 text-white hover:bg-red-700 shadow-lg shadow-red-600/20"
-                  )}
-                >
-                  <Navigation size={14} className={cn(isFetchingLocation && "animate-spin")} />
-                  {isFetchingLocation ? "Mencari..." : userLocation ? "Lokasi Aktif" : "Aktifkan Lokasi"}
-                </button>
               </div>
               <EmergencyInput onSend={handleSend} isLoading={isLoading} />
             </section>
@@ -1066,8 +1053,8 @@ Sambil menunggu analisis mendalam dari AI, berikut adalah langkah keselamatan st
               <span className="text-[10px] font-black uppercase tracking-[0.2em]">SiagaBencana © 2026</span>
             </div>
             <div className="flex items-center gap-3 text-[9px] font-bold text-slate-400 uppercase tracking-widest">
-              <span className="bg-slate-100 px-2 py-0.5 rounded text-slate-600">v1.4.2-stable</span>
-              <span>Patch: 6 Mar 2026, 11:52</span>
+              <span className="bg-slate-100 px-2 py-0.5 rounded text-slate-600">v1.4.3-stable</span>
+              <span>Patch: 6 Mar 2026, 12:35</span>
             </div>
           </div>
           <div className="flex items-center gap-2">

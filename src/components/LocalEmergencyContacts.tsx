@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Phone, MapPin, Hospital, Shield, Flame, Info, ExternalLink, LifeBuoy } from 'lucide-react';
+import { Phone, MapPin, Hospital, Shield, Flame, Info, ExternalLink, LifeBuoy, RefreshCw } from 'lucide-react';
 import { motion } from 'motion/react';
 import { getNearbyEmergencyContacts, EmergencyContact } from '../services/emergencyContacts';
 import { cn } from '../utils/cn';
@@ -13,17 +13,31 @@ export const LocalEmergencyContacts = ({ lat, lng }: LocalEmergencyContactsProps
   const [contacts, setContacts] = useState<EmergencyContact[]>([]);
   const [locationName, setLocationName] = useState<string>('');
   const [loading, setLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
-  useEffect(() => {
-    const fetchContacts = async () => {
-      setLoading(true);
+  const fetchContacts = async (showLoading = true) => {
+    if (showLoading) setLoading(true);
+    setIsRefreshing(true);
+    try {
       const data = await getNearbyEmergencyContacts(lat, lng);
       setContacts(data.contacts);
       setLocationName(data.locationName);
+    } catch (error) {
+      console.error("Failed to fetch contacts:", error);
+    } finally {
       setLoading(false);
-    };
+      setIsRefreshing(false);
+    }
+  };
+
+  useEffect(() => {
     fetchContacts();
   }, [lat, lng]);
+
+  const handleRefresh = (e: React.MouseEvent) => {
+    e.preventDefault();
+    fetchContacts(false);
+  };
 
   const getIcon = (type: string) => {
     switch (type) {
@@ -45,7 +59,22 @@ export const LocalEmergencyContacts = ({ lat, lng }: LocalEmergencyContactsProps
           </h3>
           <p className="text-xs text-slate-500 font-medium flex items-center gap-1 mt-1">
             <MapPin size={12} />
-            Terdeteksi di sekitar: <span className="text-slate-900 font-bold">{locationName}</span>
+            Terdeteksi di sekitar: <span className={cn("font-bold", locationName === "Area Anda" ? "text-red-600" : "text-slate-900")}>{locationName}</span>
+            <button 
+              onClick={handleRefresh}
+              disabled={isRefreshing}
+              className={cn(
+                "ml-2 p-1.5 rounded-lg transition-all flex items-center gap-1",
+                locationName === "Area Anda" 
+                  ? "bg-red-50 text-red-600 hover:bg-red-100 border border-red-200" 
+                  : "text-slate-400 hover:text-red-600 hover:bg-slate-100",
+                isRefreshing && "animate-spin"
+              )}
+              title="Refresh Lokasi"
+            >
+              <RefreshCw size={12} />
+              {locationName === "Area Anda" && !isRefreshing && <span className="text-[9px] font-black uppercase tracking-tighter">Refresh</span>}
+            </button>
           </p>
         </div>
       </div>
