@@ -605,6 +605,25 @@ Sambil menunggu analisis mendalam dari AI, berikut adalah langkah keselamatan st
         )}
       </AnimatePresence>
 
+      {/* Global Loading Progress Bar */}
+      <AnimatePresence>
+        {isLoading && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed top-0 left-0 right-0 z-[100] h-1 bg-slate-100"
+          >
+            <motion.div
+              initial={{ width: "0%" }}
+              animate={{ width: "90%" }}
+              transition={{ duration: 15, ease: "linear" }}
+              className="h-full bg-red-600 shadow-[0_0_10px_rgba(220,38,38,0.5)]"
+            />
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Header */}
       <header className="bg-white border-b border-slate-200 sticky top-0 z-50">
         <div className="max-w-5xl mx-auto px-4 h-16 flex items-center justify-between">

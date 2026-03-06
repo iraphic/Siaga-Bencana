@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Phone, MapPin, Hospital, Shield, Flame, Info, ExternalLink } from 'lucide-react';
+import { Phone, MapPin, Hospital, Shield, Flame, Info, ExternalLink, LifeBuoy } from 'lucide-react';
 import { motion } from 'motion/react';
 import { getNearbyEmergencyContacts, EmergencyContact } from '../services/emergencyContacts';
 import { cn } from '../utils/cn';
@@ -30,6 +30,7 @@ export const LocalEmergencyContacts = ({ lat, lng }: LocalEmergencyContactsProps
       case 'hospital': return <Hospital size={16} className="text-emerald-600" />;
       case 'police': return <Shield size={16} className="text-blue-600" />;
       case 'fire': return <Flame size={16} className="text-orange-600" />;
+      case 'sar': return <LifeBuoy size={16} className="text-red-600" />;
       default: return <Info size={16} className="text-slate-600" />;
     }
   };

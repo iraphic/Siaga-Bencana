@@ -49,25 +49,38 @@ export const ResponseDisplay = ({ response, isLoading, isMinimal }: ResponseDisp
       className="w-full max-w-2xl mx-auto mt-8"
     >
       <div className="bg-white rounded-3xl shadow-xl shadow-slate-200/50 border border-slate-100 overflow-hidden">
-        <div className="bg-red-600 px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-2 text-white">
-            <ShieldAlert size={20} />
-            <span className="font-bold tracking-tight uppercase text-sm">Panduan Keselamatan AI</span>
-          </div>
-          <div className="flex items-center gap-3">
-            {response && !isLoading && (
-              <button 
-                onClick={handleSpeak}
-                className="flex items-center gap-1.5 bg-white/20 hover:bg-white/30 text-white px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider transition-colors"
-              >
-                {isSpeaking ? <VolumeX size={14} /> : <Volume2 size={14} />}
-                {isSpeaking ? "Berhenti" : "Bacakan"}
-              </button>
-            )}
-            <div className="text-red-100 text-[10px] font-bold uppercase tracking-widest">
-              Real-time Response
+        <div className="bg-red-600 px-6 py-4 flex flex-col gap-2">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 text-white">
+              <ShieldAlert size={20} />
+              <span className="font-bold tracking-tight uppercase text-sm">Panduan Keselamatan AI</span>
+            </div>
+            <div className="flex items-center gap-3">
+              {response && !isLoading && (
+                <button 
+                  onClick={handleSpeak}
+                  className="flex items-center gap-1.5 bg-white/20 hover:bg-white/30 text-white px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider transition-colors"
+                >
+                  {isSpeaking ? <VolumeX size={14} /> : <Volume2 size={14} />}
+                  {isSpeaking ? "Berhenti" : "Bacakan"}
+                </button>
+              )}
+              <div className="text-red-100 text-[10px] font-bold uppercase tracking-widest">
+                Real-time Response
+              </div>
             </div>
           </div>
+          
+          {isLoading && (
+            <div className="w-full h-1 bg-white/20 rounded-full overflow-hidden">
+              <motion.div 
+                initial={{ width: "0%" }}
+                animate={{ width: "95%" }}
+                transition={{ duration: 10, ease: "linear" }}
+                className="h-full bg-white shadow-[0_0_10px_rgba(255,255,255,0.5)]"
+              />
+            </div>
+          )}
         </div>
         
         <div className="p-8">
