@@ -20,14 +20,25 @@ export async function getNearbyEmergencyContacts(lat: number, lng: number): Prom
       const geoRes = await fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lng}&localityLanguage=id`);
       if (geoRes.ok) {
         const geoData = await geoRes.json();
+        console.log("Data Geocoding BigDataCloud:", geoData);
         locationName = geoData.locality || geoData.city || geoData.principalSubdivision || "Area Anda";
+      } else {
+        throw new Error(`HTTP Error: ${geoRes.status}`);
       }
-    } catch (e) {
+    } catch (error: any) {
+      console.error("Pesan Error Geocoding:", error.message);
+      console.error("Nama Error Geocoding:", error.name);
+      alert(`Gagal Fetch Geocoding: ${error.message || "Error tidak diketahui"}`);
       console.warn("BigDataCloud geocoding failed, falling back to Gemini");
     }
 
     // 2. Use Gemini with Google Maps to find specific contacts
-    const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
+    if (!process.env.GEMINI_API_KEY) {
+      console.error("CRITICAL: GEMINI_API_KEY is missing in getNearbyEmergencyContacts");
+      alert("API Key Gemini tidak ditemukan di Vercel! Pastikan Anda sudah menambahkan GEMINI_API_KEY di Environment Variables Vercel, lalu lakukan REDEPLOY.");
+      throw new Error("GEMINI_API_KEY is missing");
+    }
+    const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
     
     const prompt = `Cari daftar Rumah Sakit (RS), Polsek (Kantor Polisi), Pemadam Kebakaran (Damkar), dan Basarnas (Kantor SAR) terdekat di sekitar koordinat ${lat}, ${lng}. 
     HANYA kembalikan 4 tipe ini. Jangan sertakan tipe lain.
@@ -47,23 +58,31 @@ export async function getNearbyEmergencyContacts(lat: number, lng: number): Prom
     Pastikan nomor telepon adalah nomor telepon lokal (misalnya berawalan 021 untuk Jakarta, atau kode area lokal lainnya sesuai koordinat).
     Hanya berikan daftar tersebut, maksimal 8 entri (2 per tipe jika tersedia).`;
 
-    const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
-      contents: prompt,
-      config: {
-        tools: [{ googleMaps: {} }],
-        toolConfig: {
-          retrievalConfig: {
-            latLng: {
-              latitude: lat,
-              longitude: lng
+    let text = "";
+    try {
+      const response = await ai.models.generateContent({
+        model: "gemini-2.5-flash",
+        contents: prompt,
+        config: {
+          tools: [{ googleMaps: {} }],
+          toolConfig: {
+            retrievalConfig: {
+              latLng: {
+                latitude: lat,
+                longitude: lng
+              }
             }
           }
-        }
-      },
-    });
+        },
+      });
+      text = response.text || "";
+      console.log("Raw Response Gemini:", text);
+    } catch (error: any) {
+      console.error("Pesan Error Gemini:", error.message);
+      console.error("Nama Error Gemini:", error.name);
+      alert(`Gagal Fetch Gemini: ${error.message || "Error tidak diketahui"}`);
+    }
 
-    const text = response.text || "";
     const contacts: EmergencyContact[] = [];
     let geminiLocationName = "";
 
@@ -117,8 +136,9 @@ export async function getNearbyEmergencyContacts(lat: number, lng: number): Prom
     }
 
     return { contacts, locationName: finalLocationName };
-  } catch (error) {
-    console.error("Error fetching nearby contacts:", error);
+  } catch (error: any) {
+    console.error("Error fetching nearby contacts (Outer Catch):", error);
+    alert(`Error Sistem: ${error.message || "Terjadi kesalahan tidak terduga saat memuat kontak darurat."}`);
     return {
       contacts: [
         { name: 'Ambulans (Nasional)', number: '118', type: 'hospital' },
