@@ -783,7 +783,10 @@ Sambil menunggu analisis mendalam dari AI, berikut adalah langkah keselamatan st
                     <div className="flex items-center gap-2">
                       <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">{t.weather_forecast}</span>
                       <span className="text-[10px] font-bold text-slate-300 dark:text-slate-600">•</span>
-                      <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 truncate">{weather.location}</span>
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 truncate">{weather.location}</span>
+                        <a href="https://openapi.de4a.space/docs" target="_blank" rel="noopener noreferrer" className="text-[8px] font-bold text-slate-400 dark:text-slate-600 hover:text-blue-500 transition-colors uppercase tracking-tighter">OpenAPI</a>
+                      </div>
                     </div>
                     <div className="flex items-center gap-2 mt-0.5">
                       <span className="text-sm font-black text-slate-900 dark:text-white">{weather.temp}°C</span>
@@ -1252,7 +1255,10 @@ Sambil menunggu analisis mendalam dari AI, berikut adalah langkah keselamatan st
                       <Sun size={14} className="text-orange-500" />
                       {t.weather_forecast}
                     </h4>
-                    <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500">{weather.location}</span>
+                    <div className="flex flex-col items-end">
+                      <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500">{weather.location}</span>
+                      <a href="https://openapi.de4a.space/docs" target="_blank" rel="noopener noreferrer" className="text-[8px] font-bold text-slate-300 dark:text-slate-600 hover:text-blue-500 transition-colors uppercase tracking-widest">Source: OpenAPI</a>
+                    </div>
                   </div>
                   
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -1425,8 +1431,8 @@ Sambil menunggu analisis mendalam dari AI, berikut adalah langkah keselamatan st
               <span className="text-[10px] font-black uppercase tracking-[0.2em]">SiagaBencana © 2026</span>
             </div>
             <div className="flex items-center gap-3 text-[9px] font-bold text-slate-400 uppercase tracking-widest">
-              <span className="bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded text-slate-600 dark:text-slate-400 transition-colors">v1.8.1-stable</span>
-              <span>Patch: 7 Mar 2026, 17:20 WIB</span>
+              <span className="bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded text-slate-600 dark:text-slate-400 transition-colors">v1.8.3-stable</span>
+              <span>Patch: 7 Mar 2026, 17:30 WIB</span>
             </div>
           </div>
           <div className="flex items-center gap-2">
