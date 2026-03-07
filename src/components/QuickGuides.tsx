@@ -1,12 +1,12 @@
 import React from 'react';
-import { Waves, Mountain, Flame, Zap, ChevronRight, Shield } from 'lucide-react';
+import { Waves, Mountain, Flame, Zap, ChevronRight, Shield, Droplets } from 'lucide-react';
 import { cn } from '../utils/cn';
 
 const guides = [
   {
     id: 'banjir',
     title: 'Banjir',
-    icon: <Waves size={20} />,
+    icon: <Droplets size={20} />,
     color: 'bg-blue-50 text-blue-600',
     steps: ['Matikan listrik', 'Pindahkan barang ke atas', 'Siapkan tas siaga']
   },
@@ -16,6 +16,13 @@ const guides = [
     icon: <Zap size={20} />,
     color: 'bg-orange-50 text-orange-600',
     steps: ['Drop, Cover, Hold on', 'Jauhi kaca/lemari', 'Lari ke area terbuka']
+  },
+  {
+    id: 'tsunami',
+    title: 'Tsunami',
+    icon: <Waves size={20} />,
+    color: 'bg-cyan-50 text-cyan-600',
+    steps: ['Jauhi pantai segera', 'Lari ke tempat tinggi', 'Ikuti jalur evakuasi']
   },
   {
     id: 'longsor',
@@ -44,7 +51,7 @@ export const QuickGuides = () => {
   return (
     <section className="mt-8">
       <h3 className="text-xs font-black text-slate-400 uppercase tracking-widest mb-4">Panduan Cepat Keselamatan</h3>
-      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
         {guides.map((guide) => (
           <div key={guide.id} className="bg-white p-4 rounded-2xl border border-slate-100 shadow-sm hover:shadow-md transition-all group">
             <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center mb-3 transition-transform group-hover:scale-110", guide.color)}>

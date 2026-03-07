@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Shield, Map as MapIcon, MessageSquare, AlertCircle, Info, ChevronRight, Zap, Navigation, Smartphone, Download, Share2, History, Filter, Maximize2, Minimize2 } from 'lucide-react';
+import { Shield, Map as MapIcon, MessageSquare, AlertCircle, Info, ChevronRight, Zap, Navigation, Smartphone, Download, Share2, History, Filter, Maximize2, Minimize2, Key } from 'lucide-react';
 import { EmergencyMap, DisasterEvent } from './components/EmergencyMap';
 import { BMKGGisInfo } from './components/BMKGGisInfo';
 import { EmergencyInput } from './components/EmergencyInput';
@@ -329,6 +329,7 @@ Sambil menunggu analisis mendalam dari AI, berikut adalah langkah keselamatan st
 1. **Tetap Tenang**: Jangan panik, kepanikan akan menghambat pengambilan keputusan yang tepat.
 2. **Cari Tempat Aman**: 
    - **Gempa**: Berlindung di bawah meja kuat atau lindungi kepala.
+   - **Tsunami**: Segera jauhi pantai dan lari ke tempat yang lebih tinggi.
    - **Banjir**: Segera menuju ke tempat yang lebih tinggi.
    - **Kebakaran**: Keluar dari bangunan melalui jalur evakuasi, jangan gunakan lift.
 3. **Hubungi Nomor Darurat**: Segera hubungi **112** (Layanan Darurat Terpadu) atau nomor spesifik lainnya di sidebar.
@@ -703,6 +704,24 @@ Sambil menunggu analisis mendalam dari AI, berikut adalah langkah keselamatan st
               <Zap size={18} className={Notification.permission === 'granted' ? "fill-emerald-600" : ""} />
             </button>
           )}
+
+          {/* AI Studio Key Selection */}
+          {(window as any).aistudio && (
+            <button 
+              onClick={async () => {
+                try {
+                  await (window as any).aistudio.openSelectKey();
+                  window.location.reload(); // Reload to apply new key
+                } catch (err) {
+                  console.error("Failed to open key selector", err);
+                }
+              }}
+              className="p-2 rounded-xl text-slate-400 bg-slate-100 hover:text-blue-600 hover:bg-blue-50 transition-all"
+              title="Pilih API Key (AI Studio)"
+            >
+              <Key size={18} />
+            </button>
+          )}
         </div>
       </header>
 
@@ -1038,6 +1057,14 @@ Sambil menunggu analisis mendalam dari AI, berikut adalah langkah keselamatan st
                 <div className="space-y-1">
                   <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Basarnas</p>
                   <p className="text-xl font-black">115</p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">PLN (Listrik)</p>
+                  <p className="text-xl font-black">123</p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">BNPB</p>
+                  <p className="text-xl font-black">117</p>
                 </div>
               </div>
             </div>

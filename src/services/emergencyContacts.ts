@@ -4,7 +4,7 @@ import { GoogleGenAI } from "@google/genai";
 export interface EmergencyContact {
   name: string;
   number: string;
-  type: 'hospital' | 'police' | 'fire' | 'sar' | 'general';
+  type: 'hospital' | 'police' | 'fire' | 'sar' | 'pln' | 'general';
   address?: string;
   distance?: number;
 }
@@ -40,8 +40,8 @@ export async function getNearbyEmergencyContacts(lat: number, lng: number): Prom
     }
     const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
     
-    const prompt = `Cari daftar Rumah Sakit (RS), Polsek (Kantor Polisi), Pemadam Kebakaran (Damkar), dan Basarnas (Kantor SAR) terdekat di sekitar koordinat ${lat}, ${lng}. 
-    HANYA kembalikan 4 tipe ini. Jangan sertakan tipe lain.
+    const prompt = `Cari daftar Rumah Sakit (RS), Polsek (Kantor Polisi), Pemadam Kebakaran (Damkar), Basarnas (Kantor SAR), dan PLN (Gangguan Listrik) terdekat di sekitar koordinat ${lat}, ${lng}. 
+    HANYA kembalikan 5 tipe ini. Jangan sertakan tipe lain.
     
     Tentukan juga nama area (kecamatan atau kelurahan) dari koordinat tersebut dan tulis di baris pertama dengan format: AREA: [Nama Area]
     
@@ -54,9 +54,10 @@ export async function getNearbyEmergencyContacts(lat: number, lng: number): Prom
     [Polisi] Polsek Kebayoran | 0217654321 | Jl. Polisi No. 2
     [Damkar] Damkar Sektor X | 0219876543 | Jl. Api No. 3
     [SAR] Basarnas Jakarta | 0215501512 | Jl. SAR No. 4
+    [PLN] PLN Area X | 021123 | Jl. Listrik No. 5
     
     Pastikan nomor telepon adalah nomor telepon lokal (misalnya berawalan 021 untuk Jakarta, atau kode area lokal lainnya sesuai koordinat).
-    Hanya berikan daftar tersebut, maksimal 8 entri (2 per tipe jika tersedia).`;
+    Hanya berikan daftar tersebut, maksimal 12 entri (berikan minimal 3 Polsek/Kantor Polisi jika tersedia).`;
 
     let text = "";
     try {
@@ -80,7 +81,12 @@ export async function getNearbyEmergencyContacts(lat: number, lng: number): Prom
     } catch (error: any) {
       console.error("Pesan Error Gemini:", error.message);
       console.error("Nama Error Gemini:", error.name);
-      alert(`Gagal Fetch Gemini: ${error.message || "Error tidak diketahui"}`);
+      
+      if (error.message?.includes("403") && (error.message?.includes("referer") || error.message?.includes("blocked"))) {
+        alert("Kunci API Gemini diblokir oleh batasan domain (HTTP Referrer). Silakan gunakan kunci API tanpa batasan atau pilih kunci baru melalui menu pengaturan jika tersedia.");
+      } else {
+        alert(`Gagal Fetch Gemini: ${error.message || "Error tidak diketahui"}`);
+      }
     }
 
     const contacts: EmergencyContact[] = [];
@@ -98,12 +104,13 @@ export async function getNearbyEmergencyContacts(lat: number, lng: number): Prom
         const parts = line.split('|').map(p => p.trim());
         if (parts.length >= 2) {
           const typePart = parts[0].toLowerCase();
-          let type: 'hospital' | 'police' | 'fire' | 'sar' | 'general' = 'general';
+          let type: 'hospital' | 'police' | 'fire' | 'sar' | 'pln' | 'general' = 'general';
           
           if (typePart.includes('[rs]') || typePart.includes('rumah sakit')) type = 'hospital';
           else if (typePart.includes('[polisi]') || typePart.includes('polsek')) type = 'police';
           else if (typePart.includes('[damkar]') || typePart.includes('pemadam')) type = 'fire';
           else if (typePart.includes('[sar]') || typePart.includes('basarnas') || typePart.includes('search and rescue')) type = 'sar';
+          else if (typePart.includes('[pln]') || typePart.includes('listrik')) type = 'pln';
 
           // Only add if it's one of the requested types
           if (type !== 'general') {

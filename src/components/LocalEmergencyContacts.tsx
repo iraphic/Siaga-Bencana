@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Phone, MapPin, Hospital, Shield, Flame, Info, ExternalLink, LifeBuoy, RefreshCw } from 'lucide-react';
+import { Phone, MapPin, Hospital, Shield, Flame, Info, ExternalLink, LifeBuoy, RefreshCw, Zap } from 'lucide-react';
 import { motion } from 'motion/react';
 import { getNearbyEmergencyContacts, EmergencyContact } from '../services/emergencyContacts';
 import { cn } from '../utils/cn';
@@ -20,7 +20,13 @@ export const LocalEmergencyContacts = ({ lat, lng }: LocalEmergencyContactsProps
     setIsRefreshing(true);
     try {
       const data = await getNearbyEmergencyContacts(lat, lng);
-      setContacts(data.contacts);
+      // Sort police to the top
+      const sortedContacts = [...data.contacts].sort((a, b) => {
+        if (a.type === 'police' && b.type !== 'police') return -1;
+        if (a.type !== 'police' && b.type === 'police') return 1;
+        return 0;
+      });
+      setContacts(sortedContacts);
       setLocationName(data.locationName);
     } catch (error) {
       console.error("Failed to fetch contacts:", error);
@@ -45,6 +51,7 @@ export const LocalEmergencyContacts = ({ lat, lng }: LocalEmergencyContactsProps
       case 'police': return <Shield size={16} className="text-blue-600" />;
       case 'fire': return <Flame size={16} className="text-orange-600" />;
       case 'sar': return <LifeBuoy size={16} className="text-red-600" />;
+      case 'pln': return <Zap size={16} className="text-yellow-600" />;
       default: return <Info size={16} className="text-slate-600" />;
     }
   };
@@ -57,6 +64,9 @@ export const LocalEmergencyContacts = ({ lat, lng }: LocalEmergencyContactsProps
             <Phone size={20} className="text-red-600" />
             Kontak Darurat Lokal
           </h3>
+          <p className="text-[10px] text-blue-600 font-bold uppercase tracking-tight mt-0.5">
+            Prioritas: Polsek & Kantor Polisi Terdekat
+          </p>
           <p className="text-xs text-slate-500 font-medium flex items-center gap-1 mt-1">
             <MapPin size={12} />
             Terdeteksi di sekitar: <span className={cn("font-bold", locationName === "Area Anda" ? "text-red-600" : "text-slate-900")}>{locationName}</span>

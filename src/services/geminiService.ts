@@ -50,7 +50,10 @@ export const getEmergencyAdvice = async (query: string, location?: { lat: number
       return "Maaf, sistem sedang sibuk karena banyaknya permintaan. Mohon tunggu sebentar atau ikuti prosedur keselamatan standar.";
     }
     
-    if (error.message?.includes("403") || error.message?.includes("API_KEY_INVALID")) {
+    if (error.message?.includes("403") || error.message?.includes("PERMISSION_DENIED")) {
+      if (error.message?.includes("referer") || error.message?.includes("blocked")) {
+        return "Maaf, kunci API yang digunakan memiliki batasan (HTTP Referrer) yang memblokir akses dari lingkungan ini. Silakan klik tombol 'Pilih API Key' di bagian bawah jika tersedia, atau hubungi administrator untuk menggunakan kunci tanpa batasan domain.";
+      }
       return "Maaf, terjadi masalah otentikasi dengan layanan AI. Mohon hubungi administrator.";
     }
 
