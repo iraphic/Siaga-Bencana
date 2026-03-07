@@ -64,7 +64,9 @@ export const LocalEmergencyContacts = ({ lat, lng }: LocalEmergencyContactsProps
             <Phone size={20} className="text-red-600" />
             Kontak Darurat Lokal
           </h3>
-        
+          <p className="text-[10px] text-blue-600 font-bold uppercase tracking-tight mt-0.5">
+            Prioritas: Polsek & Kantor Polisi Terdekat
+          </p>
           <p className="text-xs text-slate-500 font-medium flex items-center gap-1 mt-1">
             <MapPin size={12} />
             Terdeteksi di sekitar: <span className={cn("font-bold", locationName === "Area Anda" ? "text-red-600" : "text-slate-900")}>{locationName}</span>
