@@ -269,6 +269,13 @@ export default function App() {
   };
 
   useEffect(() => {
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches || (window.navigator as any).standalone === true;
+    
+    if (isStandalone) {
+      setShowInstallBanner(false);
+      return;
+    }
+
     const handler = (e: any) => {
       e.preventDefault();
       setDeferredPrompt(e);
@@ -279,7 +286,7 @@ export default function App() {
 
     // Show banner after 5 seconds if not installed (fallback simulation)
     const timer = setTimeout(() => {
-      if (!window.matchMedia('(display-mode: standalone)').matches && !deferredPrompt) {
+      if (!isStandalone && !deferredPrompt) {
         setShowInstallBanner(true);
       }
     }, 5000);
@@ -676,7 +683,6 @@ Sambil menunggu analisis mendalam dari AI, berikut adalah langkah keselamatan st
       <button
         onClick={() => {
           setShowFeedbackModal(true);
-          setShowInstallBanner(true);
         }}
         className="fixed bottom-6 right-6 z-[90] w-14 h-14 bg-red-600 text-white rounded-full flex items-center justify-center shadow-2xl shadow-red-600/40 hover:scale-110 active:scale-95 transition-all group"
         title={t.feedback_button}
@@ -899,7 +905,6 @@ Sambil menunggu analisis mendalam dari AI, berikut adalah langkah keselamatan st
             <button 
               onClick={() => {
                 setActiveTab('chat');
-                setShowInstallBanner(true);
               }}
               className={cn(
                 "text-sm font-bold uppercase tracking-widest transition-colors",
@@ -960,7 +965,6 @@ Sambil menunggu analisis mendalam dari AI, berikut adalah langkah keselamatan st
           <button
             onClick={() => {
               setActiveTab('chat');
-              setShowInstallBanner(true);
             }}
             className={cn(
               "flex-1 flex items-center justify-center gap-1 py-3 rounded-xl text-[10px] font-bold transition-all",
@@ -1431,8 +1435,8 @@ Sambil menunggu analisis mendalam dari AI, berikut adalah langkah keselamatan st
               <span className="text-[10px] font-black uppercase tracking-[0.2em]">SiagaBencana © 2026</span>
             </div>
             <div className="flex items-center gap-3 text-[9px] font-bold text-slate-400 uppercase tracking-widest">
-              <span className="bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded text-slate-600 dark:text-slate-400 transition-colors">v1.8.3-stable</span>
-              <span>Patch: 7 Mar 2026, 17:30 WIB</span>
+              <span className="bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded text-slate-600 dark:text-slate-400 transition-colors">v1.8.4-stable</span>
+              <span>Patch: 7 Mar 2026, 17:40 WIB</span>
             </div>
           </div>
           <div className="flex items-center gap-2">
