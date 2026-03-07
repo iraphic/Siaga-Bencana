@@ -42,6 +42,7 @@ export const translations = {
     location_inactive: "Lokasi Belum Aktif",
     location_inactive_desc: "Aktifkan lokasi untuk melihat nomor darurat lokal dan bahaya di sekitar Anda secara real-time.",
     guides: {
+      powerbank: { title: "Energi Darurat", steps: ['Siapkan Powerbank (min. 10.000mAh).', 'Gunakan Powerbank Solar (Tenaga Surya).', 'Hemat baterai HP (Low Power Mode).', 'Matikan fitur yang tidak perlu (GPS/BT).'] },
       banjir: { title: "Banjir", steps: ['Matikan listrik', 'Pindahkan barang ke atas', 'Siapkan tas siaga'] },
       tas_darurat: { title: "Tas Darurat (72 Jam)", steps: ['Air minum & makanan siap saji (3 hari).', 'Kotak P3K & obat-obatan pribadi.', 'Senter, baterai cadangan & powerbank.', 'Uang tunai, pakaian ganti & masker.'] },
       gempa: { title: "Gempa", steps: ['Drop, Cover, Hold on', 'Jauhi kaca/lemari', 'Lari ke area terbuka'] },
@@ -85,6 +86,7 @@ export const translations = {
     weather_forecast: "Prakiraan Cuaca",
     weather_loading: "Memuat info cuaca...",
     weather_error: "Gagal memuat cuaca",
+    download_chat: "Unduh PDF Konsultasi",
     national_numbers: {
       ambulance: "Ambulans",
       police: "Polisi",
@@ -136,6 +138,7 @@ export const translations = {
     location_inactive: "Location Inactive",
     location_inactive_desc: "Activate location to see local emergency numbers and nearby hazards in real-time.",
     guides: {
+      powerbank: { title: "Emergency Energy", steps: ['Prepare Powerbank (min. 10,000mAh).', 'Use Solar Powerbank (Solar Powered).', 'Save phone battery (Low Power Mode).', 'Turn off unnecessary features (GPS/BT).'] },
       banjir: { title: "Flood", steps: ['Turn off electricity', 'Move items upstairs', 'Prepare emergency bag'] },
       tas_darurat: { title: "Emergency Bag (72h)", steps: ['Drinking water & ready-to-eat food (3 days).', 'First aid kit & personal medications.', 'Flashlight, extra batteries & powerbank.', 'Cash, change of clothes & mask.'] },
       gempa: { title: "Earthquake", steps: ['Drop, Cover, Hold on', 'Stay away from glass', 'Run to open area'] },
@@ -179,6 +182,7 @@ export const translations = {
     weather_forecast: "Weather Forecast",
     weather_loading: "Loading weather info...",
     weather_error: "Failed to load weather",
+    download_chat: "Download Consultation PDF",
     national_numbers: {
       ambulance: "Ambulance",
       police: "Police",

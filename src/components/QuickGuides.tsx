@@ -1,5 +1,5 @@
 import React from 'react';
-import { Waves, Mountain, Flame, Zap, Shield, Droplets } from 'lucide-react';
+import { Waves, Mountain, Flame, Zap, Shield, Activity, Droplets } from 'lucide-react';
 import { cn } from '../utils/cn';
 
 interface QuickGuidesProps {
@@ -18,7 +18,7 @@ export const QuickGuides = ({ t }: QuickGuidesProps) => {
     {
       id: 'gempa',
       title: t.guides.gempa.title,
-      icon: <Zap size={20} />,
+      icon: <Activity size={20} />,
       color: 'bg-orange-50 dark:bg-orange-900/20 text-orange-600 dark:text-orange-400',
       steps: t.guides.gempa.steps
     },

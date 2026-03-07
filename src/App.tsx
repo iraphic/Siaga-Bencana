@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
+import { jsPDF } from 'jspdf';
 import { translations } from './translations';
 import { Shield, Map as MapIcon, MessageSquare, AlertCircle, Info, ChevronRight, Zap, Navigation, Smartphone, Download, Share2, History, Filter, Maximize2, Minimize2, Phone, MapPin, Sun, Languages, CloudRain, CloudLightning, Cloud, Thermometer, Wind } from 'lucide-react';
 import { EmergencyMap, DisasterEvent } from './components/EmergencyMap';
@@ -577,6 +578,68 @@ Sambil menunggu analisis mendalam dari AI, berikut adalah langkah keselamatan st
     }
   };
 
+  const downloadChatAsPDF = () => {
+    if (chatHistory.length === 0) return;
+    
+    const doc = new jsPDF();
+    const margin = 15;
+    let y = 20;
+    
+    // Title
+    doc.setFontSize(18);
+    doc.setTextColor(220, 38, 38); // Red-600
+    doc.text("SiagaBencana - Konsultasi Darurat", margin, y);
+    y += 10;
+    
+    // Metadata
+    doc.setFontSize(10);
+    doc.setTextColor(100, 116, 139); // Slate-500
+    doc.text(`Waktu Unduh: ${new Date().toLocaleString('id-ID')}`, margin, y);
+    y += 15;
+    
+    chatHistory.forEach((msg) => {
+      const role = msg.role === 'user' ? "PENGGUNA" : "ASISTEN AI";
+      const time = msg.timestamp.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+      
+      // Role Header
+      doc.setFontSize(11);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(msg.role === 'user' ? 51 : 15, msg.role === 'user' ? 65 : 23, msg.role === 'user' ? 85 : 42); // Slate-800 or Slate-900
+      doc.text(`${role} (${time}):`, margin, y);
+      y += 7;
+      
+      // Content
+      doc.setFontSize(10);
+      doc.setFont("helvetica", "normal");
+      doc.setTextColor(71, 85, 105); // Slate-600
+      
+      // Clean markdown-like syntax for PDF
+      const cleanContent = msg.content
+        .replace(/###\s/g, '')
+        .replace(/\*\*/g, '')
+        .replace(/\*/g, '• ')
+        .replace(/`{1,3}/g, '');
+        
+      const splitText = doc.splitTextToSize(cleanContent, 180);
+      doc.text(splitText, margin, y);
+      
+      y += (splitText.length * 5) + 12;
+      
+      // Page break check
+      if (y > 270) {
+        doc.addPage();
+        y = 20;
+      }
+    });
+    
+    // Footer on last page
+    doc.setFontSize(8);
+    doc.setTextColor(148, 163, 184); // Slate-400
+    doc.text("Dokumen ini dihasilkan secara otomatis oleh SiagaBencana AI. Simpan untuk akses offline.", margin, 285);
+    
+    doc.save(`SiagaBencana_Konsultasi_${new Date().getTime()}.pdf`);
+  };
+
   const disasterTypes = ['All', 'Gempa BMKG', ...Array.from(new Set(events.filter(e => e.source !== 'BMKG').map(e => e.type)))];
   const filteredEvents = selectedType === 'All' 
     ? events 
@@ -1140,6 +1203,22 @@ Sambil menunggu analisis mendalam dari AI, berikut adalah langkah keselamatan st
 
             <ResponseDisplay response={response} isLoading={isLoading} />
             
+            {chatHistory.length > 0 && !isLoading && (
+              <motion.div 
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="flex justify-center mt-6"
+              >
+                <button
+                  onClick={downloadChatAsPDF}
+                  className="flex items-center gap-3 px-8 py-4 bg-slate-900 dark:bg-slate-800 text-white rounded-2xl text-xs font-black uppercase tracking-[0.2em] hover:bg-slate-800 dark:hover:bg-slate-700 transition-all shadow-xl shadow-slate-900/20 group"
+                >
+                  <Download size={18} className="group-hover:translate-y-0.5 transition-transform" />
+                  {t.download_chat}
+                </button>
+              </motion.div>
+            )}
+            
             <AnimatePresence>
               {isLoading && showQuickTips && (
                 <motion.div
@@ -1171,12 +1250,12 @@ Sambil menunggu analisis mendalam dari AI, berikut adalah langkah keselamatan st
                 <QuickGuides t={t} />
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-8">
                   <div className="p-6 bg-white dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-sm hover:shadow-md transition-all">
-                    <div className="w-10 h-10 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 rounded-2xl flex items-center justify-center mb-4 transition-colors">
-                      <AlertCircle size={20} />
+                    <div className="w-10 h-10 bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400 rounded-2xl flex items-center justify-center mb-4 transition-colors">
+                      <Zap size={20} />
                     </div>
-                    <h3 className="font-bold text-slate-900 dark:text-white mb-2 transition-colors">{t.guides.banjir.title}</h3>
+                    <h3 className="font-bold text-slate-900 dark:text-white mb-2 transition-colors">{t.guides.powerbank.title}</h3>
                     <ul className="text-xs text-slate-500 dark:text-slate-400 space-y-2 transition-colors">
-                      {t.guides.banjir.steps.map((step: string, i: number) => (
+                      {t.guides.powerbank.steps.map((step: string, i: number) => (
                         <li key={i} className="flex gap-2"><span>•</span> {step}</li>
                       ))}
                     </ul>
@@ -1435,8 +1514,8 @@ Sambil menunggu analisis mendalam dari AI, berikut adalah langkah keselamatan st
               <span className="text-[10px] font-black uppercase tracking-[0.2em]">SiagaBencana © 2026</span>
             </div>
             <div className="flex items-center gap-3 text-[9px] font-bold text-slate-400 uppercase tracking-widest">
-              <span className="bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded text-slate-600 dark:text-slate-400 transition-colors">v1.8.4-stable</span>
-              <span>Patch: 7 Mar 2026, 17:40 WIB</span>
+              <span className="bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded text-slate-600 dark:text-slate-400 transition-colors">v1.8.7-stable</span>
+              <span>Patch: 7 Mar 2026, 21:30 WIB</span>
             </div>
           </div>
           <div className="flex items-center gap-2">
