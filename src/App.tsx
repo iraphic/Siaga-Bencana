@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Shield, Map as MapIcon, MessageSquare, AlertCircle, Info, ChevronRight, Zap, Navigation, Smartphone, Download, Share2, History, Filter, Maximize2, Minimize2, Phone, MapPin } from 'lucide-react';
+import { translations } from './translations';
+import { Shield, Map as MapIcon, MessageSquare, AlertCircle, Info, ChevronRight, Zap, Navigation, Smartphone, Download, Share2, History, Filter, Maximize2, Minimize2, Phone, MapPin, Sun, Languages, CloudRain, CloudLightning, Cloud, Thermometer, Wind } from 'lucide-react';
 import { EmergencyMap, DisasterEvent } from './components/EmergencyMap';
 import { BMKGGisInfo } from './components/BMKGGisInfo';
 import { EmergencyInput } from './components/EmergencyInput';
@@ -22,6 +23,24 @@ const getDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => 
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   return R * c;
 };
+
+export interface WeatherForecast {
+  time: string;
+  temp: number;
+  condition: string;
+  icon: string;
+}
+
+export interface WeatherInfo {
+  location: string;
+  temp: number;
+  condition: string;
+  icon: string;
+  description: string;
+  humidity?: number;
+  windSpeed?: number;
+  forecasts?: WeatherForecast[];
+}
 
 export interface ChatMessage {
   id: string;
@@ -53,28 +72,171 @@ export default function App() {
   const seenEventIds = React.useRef<Set<string>>(new Set());
   const isFirstLoad = React.useRef<boolean>(true);
   const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
+  const [lang, setLang] = useState<'id' | 'en'>('id');
+  const [theme, setTheme] = useState<'light' | 'dark' | 'system'>('system');
+  const [weather, setWeather] = useState<WeatherInfo | null>(null);
+  const [isFetchingWeather, setIsFetchingWeather] = useState(false);
+
+  const t = translations[lang];
+
+  useEffect(() => {
+    const root = window.document.documentElement;
+    if (theme === 'dark' || (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+      root.classList.add('dark');
+    } else {
+      root.classList.remove('dark');
+    }
+  }, [theme]);
+
+  const fetchWeather = async (lat: number, lon: number) => {
+    setIsFetchingWeather(true);
+    
+    try {
+      const apiUrl = `https://openapi.de4a.space/api/weather/forecast?lat=${lat}&long=${lon}`;
+      
+      // Robust fetch with multiple proxy fallbacks
+      const fetchWithProxy = async (targetUrl: string) => {
+        const proxies = [
+          `https://api.allorigins.win/get?url=${encodeURIComponent(targetUrl)}`,
+          `https://corsproxy.io/?${encodeURIComponent(targetUrl)}`,
+          `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(targetUrl)}`,
+          `https://thingproxy.freeboard.io/fetch/${targetUrl}`
+        ];
+
+        for (const proxyUrl of proxies) {
+          try {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 8000);
+            
+            const res = await fetch(proxyUrl, { signal: controller.signal });
+            clearTimeout(timeoutId);
+            
+            if (!res.ok) continue;
+            
+            if (proxyUrl.includes('allorigins')) {
+              const data = await res.json();
+              if (data.contents) return JSON.parse(data.contents);
+            } else {
+              const text = await res.text();
+              try {
+                return JSON.parse(text);
+              } catch (e) {
+                continue;
+              }
+            }
+          } catch (e) {
+            console.warn(`Proxy ${proxyUrl} failed:`, e);
+            await new Promise(r => setTimeout(r, 500));
+          }
+        }
+        
+        try {
+          const res = await fetch(targetUrl);
+          if (res.ok) return await res.json();
+        } catch (e) {}
+        
+        throw new Error("All proxies failed to load weather data");
+      };
+
+      const weatherData = await fetchWithProxy(apiUrl);
+      
+      if (weatherData && weatherData.status === 1 && weatherData.data && weatherData.data.length > 0) {
+        const locationInfo = weatherData.data[0].location;
+        const areaName = `${locationInfo.subdistrict}, ${locationInfo.city}`;
+        
+        // Flatten weather data
+        const allForecasts: any[] = [];
+        weatherData.data[0].weather.forEach((group: any[]) => {
+          group.forEach((item: any) => {
+            allForecasts.push(item);
+          });
+        });
+
+        // Sort by datetime
+        allForecasts.sort((a, b) => new Date(a.datetime).getTime() - new Date(b.datetime).getTime());
+
+        const now = new Date();
+        // Find current or next forecast
+        let currentIndex = allForecasts.findIndex(f => new Date(f.datetime) >= now);
+        if (currentIndex === -1) currentIndex = 0;
+
+        const current = allForecasts[currentIndex];
+
+        // Generate next forecasts (3-hour intervals as provided by API)
+        const nextForecasts: WeatherForecast[] = [];
+        for (let i = 1; i <= 5; i++) {
+          const idx = currentIndex + i;
+          if (allForecasts[idx]) {
+            const f = allForecasts[idx];
+            const fDate = new Date(f.datetime);
+            const hour = String(fDate.getHours()).padStart(2, '0');
+            const day = String(fDate.getDate()).padStart(2, '0');
+            const month = String(fDate.getMonth() + 1).padStart(2, '0');
+            
+            let timeLabel = `${day}/${month} ${hour}:00`;
+            if (i === 1) timeLabel = lang === 'id' ? "3 Jam Lagi" : "3h Later";
+            if (i === 2) timeLabel = lang === 'id' ? "6 Jam Lagi" : "6h Later";
+
+            nextForecasts.push({
+              time: timeLabel,
+              temp: Math.round(f.t),
+              condition: f.weather_desc,
+              icon: f.image
+            });
+          }
+        }
+
+        setWeather({
+          location: areaName,
+          temp: Math.round(current.t),
+          condition: current.weather_desc,
+          icon: current.image,
+          description: current.weather_desc,
+          humidity: current.hu,
+          windSpeed: current.ws,
+          forecasts: nextForecasts
+        });
+      }
+    } catch (error) {
+      console.error("Error fetching weather:", error);
+      if (!weather) {
+        setWeather({
+          location: "Lokasi Anda",
+          temp: 28,
+          condition: "Berawan",
+          icon: "",
+          description: "Data cuaca tidak tersedia sementara"
+        });
+      }
+    } finally {
+      setIsFetchingWeather(false);
+    }
+  };
 
   const fetchLocation = () => {
     if (navigator.geolocation) {
       setIsFetchingLocation(true);
       navigator.geolocation.getCurrentPosition(
         (position) => {
-          setUserLocation([position.coords.latitude, position.coords.longitude]);
+          const lat = position.coords.latitude;
+          const lon = position.coords.longitude;
+          setUserLocation([lat, lon]);
           setIsFetchingLocation(false);
+          fetchWeather(lat, lon);
         },
         (error) => {
           console.error("Error getting location:", error);
           setIsFetchingLocation(false);
           if (error.code === 1) {
-            alert("Izin lokasi ditolak. Silakan aktifkan izin lokasi di browser Anda.");
+            alert(t.location_denied);
           } else {
-            alert("Gagal mendapatkan lokasi. Pastikan GPS Anda aktif.");
+            alert(t.location_failed);
           }
         },
         { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
       );
     } else {
-      alert("Browser Anda tidak mendukung geolokasi.");
+      alert(t.browser_not_supported);
     }
   };
 
@@ -415,8 +577,20 @@ Sambil menunggu analisis mendalam dari AI, berikut adalah langkah keselamatan st
       ? events.filter(e => e.source === 'BMKG')
       : events.filter(e => e.type === selectedType);
 
+  const getWeatherIcon = (condition: string, size = 20, iconUrl?: string) => {
+    if (iconUrl) {
+      return <img src={iconUrl} alt={condition} style={{ width: size, height: size }} referrerPolicy="no-referrer" />;
+    }
+    const c = condition.toLowerCase();
+    if (c.includes('hujan') || c.includes('rain')) return <CloudRain size={size} className="text-blue-400" />;
+    if (c.includes('petir') || c.includes('storm')) return <CloudLightning size={size} className="text-yellow-400" />;
+    if (c.includes('cerah') || c.includes('clear') || c.includes('sun')) return <Sun size={size} className="text-orange-400" />;
+    if (c.includes('berawan') || c.includes('cloud')) return <Cloud size={size} className="text-slate-400" />;
+    return <Cloud size={size} className="text-slate-400" />;
+  };
+
   return (
-    <div className="min-h-screen bg-slate-50 font-sans text-slate-900 pb-24 md:pb-8">
+    <div className="min-h-screen bg-slate-50 dark:bg-slate-950 font-sans text-slate-900 dark:text-slate-100 pb-24 md:pb-8 transition-colors">
       {/* PWA Install Banner */}
       <AnimatePresence>
         {showInstallBanner && (
@@ -462,35 +636,35 @@ Sambil menunggu analisis mendalam dari AI, berikut adalah langkah keselamatan st
               initial={{ scale: 0.9, opacity: 0, y: 20 }}
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.9, opacity: 0, y: 20 }}
-              className="bg-white rounded-[32px] w-full max-w-md overflow-hidden shadow-2xl"
+              className="bg-white dark:bg-slate-900 rounded-[32px] w-full max-w-md overflow-hidden shadow-2xl transition-colors"
             >
-              <div className="bg-slate-900 p-6 text-white flex justify-between items-center">
+              <div className="bg-slate-900 dark:bg-slate-950 p-6 text-white flex justify-between items-center transition-colors">
                 <div className="flex items-center gap-3">
                   <div className="bg-white/10 p-2 rounded-xl">
                     <MessageSquare size={20} />
                   </div>
-                  <h3 className="font-black uppercase tracking-widest text-sm">Saran & Masukan</h3>
+                  <h3 className="font-black uppercase tracking-widest text-sm">{t.feedback_button}</h3>
                 </div>
                 <button onClick={() => setShowFeedbackModal(false)} className="text-white/40 hover:text-white">
                   <AlertCircle size={24} className="rotate-45" />
                 </button>
               </div>
-              <form onSubmit={handleFeedbackSubmit} className="p-8 space-y-6">
-                <p className="text-sm text-slate-500 font-medium">
-                  Bantu kami meningkatkan layanan SiagaBencana. Masukan Anda akan dikirim langsung ke tim pengembang.
+              <form onSubmit={handleFeedbackSubmit} className="p-8 space-y-6 bg-white dark:bg-slate-900 transition-colors">
+                <p className="text-sm text-slate-500 dark:text-slate-400 font-medium transition-colors">
+                  {t.feedback_title}
                 </p>
                 <textarea
                   required
                   value={feedbackText}
                   onChange={(e) => setFeedbackText(e.target.value)}
-                  placeholder="Tulis saran atau masukan Anda di sini..."
-                  className="w-full h-32 p-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm focus:ring-2 focus:ring-red-500 focus:border-transparent outline-none transition-all resize-none"
+                  placeholder={t.feedback_placeholder}
+                  className="w-full h-32 p-4 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl text-sm dark:text-white focus:ring-2 focus:ring-red-500 focus:border-transparent outline-none transition-all resize-none"
                 />
                 <button 
                   type="submit"
                   className="w-full py-4 bg-red-600 text-white rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-red-700 transition-colors shadow-lg shadow-red-600/20"
                 >
-                  Kirim Masukan
+                  {t.feedback_submit}
                 </button>
               </form>
             </motion.div>
@@ -505,11 +679,11 @@ Sambil menunggu analisis mendalam dari AI, berikut adalah langkah keselamatan st
           setShowInstallBanner(true);
         }}
         className="fixed bottom-6 right-6 z-[90] w-14 h-14 bg-red-600 text-white rounded-full flex items-center justify-center shadow-2xl shadow-red-600/40 hover:scale-110 active:scale-95 transition-all group"
-        title="Kirim Saran"
+        title={t.feedback_button}
       >
         <MessageSquare size={24} className="group-hover:rotate-12 transition-transform" />
-        <div className="absolute right-full mr-4 bg-slate-900 text-white text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
-          Saran & Masukan
+        <div className="absolute right-full mr-4 bg-slate-900 dark:bg-slate-800 text-white text-[10px] font-black uppercase tracking-widest px-3 py-1.5 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
+          {t.feedback_button}
         </div>
       </button>
       {/* Earthquake Detail Modal */}
@@ -520,7 +694,7 @@ Sambil menunggu analisis mendalam dari AI, berikut adalah langkah keselamatan st
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
-              className="bg-white rounded-[32px] w-full max-w-md overflow-hidden shadow-2xl"
+              className="bg-white dark:bg-slate-900 rounded-[32px] w-full max-w-md overflow-hidden shadow-2xl transition-colors"
             >
               <div className="bg-red-600 p-6 text-white">
                 <div className="flex justify-between items-start mb-4">
@@ -534,60 +708,124 @@ Sambil menunggu analisis mendalam dari AI, berikut adalah langkah keselamatan st
                     <AlertCircle size={24} className="rotate-45" />
                   </button>
                 </div>
-                <h3 className="text-2xl font-black leading-tight">Detail Gempa Terkini</h3>
+                <h3 className="text-2xl font-black leading-tight">{t.earthquake_detail}</h3>
                 <p className="text-white/80 text-sm font-bold uppercase tracking-widest mt-1">Sumber: BMKG Indonesia</p>
               </div>
               
-              <div className="p-8 space-y-6">
+              <div className="p-8 space-y-6 bg-white dark:bg-slate-900 transition-colors">
                 <div className="grid grid-cols-2 gap-6">
                   <div>
-                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Magnitudo</p>
-                    <p className="text-2xl font-black text-red-600">{bmkgGempa.Magnitude} SR</p>
+                    <p className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1 transition-colors">{t.magnitude}</p>
+                    <p className="text-2xl font-black text-red-600 dark:text-red-500 transition-colors">{bmkgGempa.Magnitude} SR</p>
                   </div>
                   <div>
-                    <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Kedalaman</p>
-                    <p className="text-2xl font-black text-slate-900">{bmkgGempa.Kedalaman}</p>
+                    <p className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1 transition-colors">{t.depth}</p>
+                    <p className="text-2xl font-black text-slate-900 dark:text-white transition-colors">{bmkgGempa.Kedalaman}</p>
                   </div>
                 </div>
 
-                <div className="h-px bg-slate-100 w-full" />
+                <div className="h-px bg-slate-100 dark:bg-slate-800 w-full transition-colors" />
 
                 <div className="space-y-4">
                   <div className="flex gap-4">
-                    <div className="mt-1 text-red-500"><Navigation size={18} /></div>
+                    <div className="mt-1 text-red-500 dark:text-red-400"><Navigation size={18} /></div>
                     <div>
-                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-0.5">Lokasi & Wilayah</p>
-                      <p className="text-sm font-bold text-slate-800 leading-snug">{bmkgGempa.Wilayah}</p>
-                      <p className="text-[11px] text-slate-500 mt-1">Koordinat: {bmkgGempa.Coordinates}</p>
+                      <p className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-0.5 transition-colors">{t.location}</p>
+                      <p className="text-sm font-bold text-slate-800 dark:text-slate-200 leading-snug transition-colors">{bmkgGempa.Wilayah}</p>
+                      <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1 transition-colors">Koordinat: {bmkgGempa.Coordinates}</p>
                     </div>
                   </div>
 
                   <div className="flex gap-4">
-                    <div className="mt-1 text-blue-500"><Info size={18} /></div>
+                    <div className="mt-1 text-blue-500 dark:text-blue-400"><Info size={18} /></div>
                     <div>
-                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-0.5">Waktu Kejadian</p>
-                      <p className="text-sm font-bold text-slate-800">{bmkgGempa.Tanggal}, {bmkgGempa.Jam}</p>
+                      <p className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-0.5 transition-colors">{t.event_time}</p>
+                      <p className="text-sm font-bold text-slate-800 dark:text-slate-200 transition-colors">{bmkgGempa.Tanggal}, {bmkgGempa.Jam}</p>
                     </div>
                   </div>
 
                   <div className="flex gap-4">
-                    <div className="mt-1 text-orange-500"><Shield size={18} /></div>
+                    <div className="mt-1 text-orange-500 dark:text-orange-400"><Shield size={18} /></div>
                     <div>
-                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-0.5">Potensi</p>
-                      <p className="text-sm font-bold text-orange-700 bg-orange-50 px-2 py-1 rounded-lg inline-block">{bmkgGempa.Potensi}</p>
+                      <p className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-0.5 transition-colors">{t.potential}</p>
+                      <p className="text-sm font-bold text-orange-700 dark:text-orange-400 bg-orange-50 dark:bg-orange-900/20 px-2 py-1 rounded-lg inline-block transition-colors">{bmkgGempa.Potensi}</p>
                     </div>
                   </div>
                 </div>
 
                 <button 
                   onClick={() => setShowGempaModal(false)}
-                  className="w-full py-4 bg-slate-900 text-white rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-slate-800 transition-colors"
+                  className="w-full py-4 bg-slate-900 dark:bg-slate-800 text-white rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-slate-800 dark:hover:bg-slate-700 transition-colors"
                 >
-                  Mengerti & Tetap Waspada
+                  {t.understand_button}
                 </button>
               </div>
             </motion.div>
           </div>
+        )}
+      </AnimatePresence>
+
+      {/* Weather Banner */}
+      <AnimatePresence>
+        {weather && (
+          <motion.div 
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            className="bg-slate-100 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 overflow-hidden transition-colors"
+          >
+            <div className="max-w-5xl mx-auto px-4 py-3">
+              <div className="flex items-center justify-between gap-4 mb-3">
+                <div className="flex items-center gap-3 overflow-hidden">
+                  <div className="bg-white dark:bg-slate-900 p-2 rounded-xl shadow-sm transition-colors shrink-0">
+                    {getWeatherIcon(weather.condition, 20, weather.icon)}
+                  </div>
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">{t.weather_forecast}</span>
+                      <span className="text-[10px] font-bold text-slate-300 dark:text-slate-600">•</span>
+                      <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 truncate">{weather.location}</span>
+                    </div>
+                    <div className="flex items-center gap-2 mt-0.5">
+                      <span className="text-sm font-black text-slate-900 dark:text-white">{weather.temp}°C</span>
+                      <span className="text-sm font-bold text-slate-600 dark:text-slate-300 truncate">{weather.condition}</span>
+                      {weather.humidity && (
+                        <span className="hidden md:flex items-center gap-1 text-[10px] font-bold text-slate-400 ml-2">
+                          <Thermometer size={10} /> {weather.humidity}%
+                        </span>
+                      )}
+                      {weather.windSpeed && (
+                        <span className="hidden md:flex items-center gap-1 text-[10px] font-bold text-slate-400 ml-1">
+                          <Wind size={10} /> {weather.windSpeed} km/h
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+                <button 
+                  onClick={() => setWeather(null)}
+                  className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 text-[10px] font-black uppercase tracking-widest transition-colors shrink-0"
+                >
+                  {lang === 'id' ? 'Tutup' : 'Close'}
+                </button>
+              </div>
+
+              {/* Forecast Row */}
+              {weather.forecasts && weather.forecasts.length > 0 && (
+                <div className="flex items-center gap-3 overflow-x-auto pb-1 no-scrollbar">
+                  {weather.forecasts.map((f, i) => (
+                    <div key={i} className="flex flex-col items-center min-w-[70px] bg-white/40 dark:bg-slate-900/40 rounded-xl py-2 px-3 border border-slate-200/50 dark:border-slate-700/50 transition-colors">
+                      <span className="text-[8px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-tighter mb-1">{f.time}</span>
+                      <div className="flex items-center gap-1.5 mb-1">
+                        {getWeatherIcon(f.condition, 14, f.icon)}
+                        <span className="text-xs font-black text-slate-900 dark:text-white">{f.temp}°</span>
+                      </div>
+                      <span className="text-[8px] font-bold text-slate-500 dark:text-slate-400 truncate w-full text-center leading-tight">{f.condition}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </motion.div>
         )}
       </AnimatePresence>
 
@@ -642,15 +880,15 @@ Sambil menunggu analisis mendalam dari AI, berikut adalah langkah keselamatan st
       </AnimatePresence>
 
       {/* Header */}
-      <header className="bg-white border-b border-slate-200 sticky top-0 z-50">
+      <header className="bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 sticky top-0 z-50 transition-colors">
         <div className="max-w-5xl mx-auto px-4 h-16 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <div className="bg-red-600 p-1.5 rounded-lg text-white">
               <Shield size={20} fill="currentColor" />
             </div>
             <div>
-              <h1 className="font-black text-lg tracking-tight leading-none">SIAGABENCANA</h1>
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">AI Emergency Assistant</p>
+              <h1 className="font-black text-lg tracking-tight leading-none text-slate-900 dark:text-white">{t.app_name}</h1>
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{t.app_desc}</p>
             </div>
           </div>
           
@@ -662,63 +900,60 @@ Sambil menunggu analisis mendalam dari AI, berikut adalah langkah keselamatan st
               }}
               className={cn(
                 "text-sm font-bold uppercase tracking-widest transition-colors",
-                activeTab === 'chat' ? "text-red-600" : "text-slate-400 hover:text-slate-600"
+                activeTab === 'chat' ? "text-red-600" : "text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300"
               )}
             >
-              Asisten AI
+              {t.chat_tab}
             </button>
             <button 
               onClick={() => setActiveTab('map')}
               className={cn(
                 "text-sm font-bold uppercase tracking-widest transition-colors",
-                activeTab === 'map' ? "text-red-600" : "text-slate-400 hover:text-slate-600"
+                activeTab === 'map' ? "text-red-600" : "text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300"
               )}
             >
-              Peta Bahaya
+              {t.map_tab}
             </button>
             <button 
               onClick={() => setActiveTab('emergency')}
               className={cn(
                 "text-sm font-bold uppercase tracking-widest transition-colors",
-                activeTab === 'emergency' ? "text-red-600" : "text-slate-400 hover:text-slate-600"
+                activeTab === 'emergency' ? "text-red-600" : "text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300"
               )}
             >
-              Nomor Darurat
+              {t.emergency_tab}
             </button>
           </div>
 
-          <div className="flex items-center gap-2 bg-emerald-50 text-emerald-700 px-3 py-1.5 rounded-full border border-emerald-100">
-            <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse" />
-            <span className="text-[10px] font-bold uppercase tracking-wider">Sistem Aktif</span>
+          <div className="flex items-center gap-2">
+            {/* Language Toggle */}
+            <div className="flex items-center bg-slate-100 dark:bg-slate-800 rounded-lg p-1 mr-1 md:mr-2">
+              <button 
+                onClick={() => setLang('id')}
+                className={cn(
+                  "px-2 py-1 rounded-md text-[10px] font-bold transition-all",
+                  lang === 'id' ? "bg-white dark:bg-slate-700 text-red-600 dark:text-red-400 shadow-sm" : "text-slate-500 hover:text-slate-700 dark:text-slate-400"
+                )}
+              >
+                ID
+              </button>
+              <button 
+                onClick={() => setLang('en')}
+                className={cn(
+                  "px-2 py-1 rounded-md text-[10px] font-bold transition-all",
+                  lang === 'en' ? "bg-white dark:bg-slate-700 text-red-600 dark:text-red-400 shadow-sm" : "text-slate-500 hover:text-slate-700 dark:text-slate-400"
+                )}
+              >
+                EN
+              </button>
+            </div>
           </div>
-
-          {/* Notification Toggle */}
-          {("Notification" in window) && (
-            <button 
-              onClick={() => {
-                if (Notification.permission === 'default') {
-                  Notification.requestPermission();
-                } else if (Notification.permission === 'denied') {
-                  alert("Notifikasi diblokir. Silakan aktifkan di pengaturan browser Anda untuk menerima peringatan gempa.");
-                }
-              }}
-              className={cn(
-                "p-2 rounded-xl transition-all",
-                Notification.permission === 'granted' 
-                  ? "text-emerald-600 bg-emerald-50" 
-                  : "text-slate-400 bg-slate-100 hover:text-red-600 hover:bg-red-50"
-              )}
-              title={Notification.permission === 'granted' ? "Notifikasi Aktif" : "Aktifkan Notifikasi Bahaya"}
-            >
-              <Zap size={18} className={Notification.permission === 'granted' ? "fill-emerald-600" : ""} />
-            </button>
-          )}
         </div>
       </header>
 
       <main className="max-w-5xl mx-auto px-4 py-8">
         {/* Mobile Tab Switcher */}
-        <div className="flex md:hidden bg-white p-1 rounded-2xl border border-slate-200 mb-8 shadow-sm">
+        <div className="flex md:hidden bg-white dark:bg-slate-900 p-1 rounded-2xl border border-slate-200 dark:border-slate-800 mb-8 shadow-sm transition-colors">
           <button
             onClick={() => {
               setActiveTab('chat');
@@ -726,78 +961,78 @@ Sambil menunggu analisis mendalam dari AI, berikut adalah langkah keselamatan st
             }}
             className={cn(
               "flex-1 flex items-center justify-center gap-1 py-3 rounded-xl text-[10px] font-bold transition-all",
-              activeTab === 'chat' ? "bg-red-600 text-white shadow-lg shadow-red-600/20" : "text-slate-500"
+              activeTab === 'chat' ? "bg-red-600 text-white shadow-lg shadow-red-600/20" : "text-slate-500 dark:text-slate-400"
             )}
           >
             <MessageSquare size={14} />
-            Chat
+            {t.chat_tab}
           </button>
           <button
             onClick={() => setActiveTab('map')}
             className={cn(
               "flex-1 flex items-center justify-center gap-1 py-3 rounded-xl text-[10px] font-bold transition-all",
-              activeTab === 'map' ? "bg-red-600 text-white shadow-lg shadow-red-600/20" : "text-slate-500"
+              activeTab === 'map' ? "bg-red-600 text-white shadow-lg shadow-red-600/20" : "text-slate-500 dark:text-slate-400"
             )}
           >
             <MapIcon size={14} />
-            Peta
+            {t.map_tab}
           </button>
           <button
             onClick={() => setActiveTab('emergency')}
             className={cn(
               "flex-1 flex items-center justify-center gap-1 py-3 rounded-xl text-[10px] font-bold transition-all",
-              activeTab === 'emergency' ? "bg-red-600 text-white shadow-lg shadow-red-600/20" : "text-slate-500"
+              activeTab === 'emergency' ? "bg-red-600 text-white shadow-lg shadow-red-600/20" : "text-slate-500 dark:text-slate-400"
             )}
           >
             <Phone size={14} />
-            Kontak
+            {t.emergency_tab}
           </button>
         </div>
 
         {activeTab === 'emergency' ? (
           <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-            <div className="bg-white p-8 rounded-[32px] border border-slate-200 shadow-sm">
+            <div className="bg-white dark:bg-slate-900 p-8 rounded-[32px] border border-slate-200 dark:border-slate-800 shadow-sm transition-colors">
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8">
                 <div>
-                  <h2 className="text-3xl font-black tracking-tight text-slate-900">Nomor Darurat</h2>
-                  <p className="text-slate-500 font-medium">Akses cepat ke layanan darurat nasional dan lokal di sekitar Anda.</p>
+                  <h2 className="text-3xl font-black tracking-tight text-slate-900 dark:text-white transition-colors">{t.emergency_contacts_title}</h2>
+                  <p className="text-slate-500 dark:text-slate-400 font-medium transition-colors">{t.emergency_contacts_desc}</p>
                 </div>
-                <div className="flex items-center gap-3 bg-red-50 px-4 py-2 rounded-2xl border border-red-100">
+                <div className="flex items-center gap-3 bg-red-50 dark:bg-red-900/20 px-4 py-2 rounded-2xl border border-red-100 dark:border-red-900/30 transition-colors">
                   <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
-                  <span className="text-xs font-black text-red-700 uppercase tracking-widest">Siaga 24 Jam</span>
+                  <span className="text-xs font-black text-red-700 dark:text-red-400 uppercase tracking-widest">{t.status_24h}</span>
                 </div>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                 {/* National Numbers */}
-                <div className="bg-slate-900 text-white p-8 rounded-[24px] shadow-xl shadow-slate-900/20">
+                <div className="bg-slate-900 dark:bg-slate-950 text-white p-8 rounded-[24px] shadow-xl shadow-slate-900/20 transition-colors">
                   <h3 className="text-lg font-bold mb-6 flex items-center gap-3">
                     <Shield size={24} className="text-red-500" />
-                    Layanan Nasional
+                    {t.national_service}
                   </h3>
                   <div className="grid grid-cols-2 gap-y-8 gap-x-4">
                     <div className="space-y-1">
-                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Ambulans</p>
+                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{t.national_numbers.ambulance}</p>
                       <p className="text-2xl font-black">118 / 119</p>
                     </div>
                     <div className="space-y-1">
-                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Polisi</p>
+                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{t.national_numbers.police}</p>
                       <p className="text-2xl font-black">110</p>
                     </div>
                     <div className="space-y-1">
-                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Pemadam</p>
+                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{t.national_numbers.fire}</p>
                       <p className="text-2xl font-black">113</p>
                     </div>
                     <div className="space-y-1">
-                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Basarnas</p>
+                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{t.national_numbers.basarnas}</p>
                       <p className="text-2xl font-black">115</p>
                     </div>
                     <div className="space-y-1">
-                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">PLN (Gangguan)</p>
+                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{t.national_numbers.pln}</p>
                       <p className="text-2xl font-black">123</p>
                     </div>
                     <div className="space-y-1">
-                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Panggilan Darurat</p>
+                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">{t.national_numbers.emergency}</p>
                       <p className="text-2xl font-black text-red-500">112</p>
                     </div>
                   </div>
@@ -805,22 +1040,22 @@ Sambil menunggu analisis mendalam dari AI, berikut adalah langkah keselamatan st
 
                 {/* Local Context Info */}
                 <div className="flex flex-col justify-center space-y-6">
-                  <div className="p-6 bg-slate-50 rounded-2xl border border-slate-100">
-                    <h4 className="font-bold text-slate-900 mb-2 flex items-center gap-2">
-                      <Navigation size={18} className="text-blue-600" />
-                      Informasi Lokasi
+                  <div className="p-6 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-100 dark:border-slate-800 transition-colors">
+                    <h4 className="font-bold text-slate-900 dark:text-white mb-2 flex items-center gap-2">
+                      <Navigation size={18} className="text-blue-600 dark:text-blue-400" />
+                      {t.local_info_title}
                     </h4>
-                    <p className="text-sm text-slate-600 leading-relaxed">
-                      Nomor darurat lokal akan muncul secara otomatis berdasarkan lokasi GPS Anda. Pastikan izin lokasi aktif untuk mendapatkan kontak instansi terdekat.
+                    <p className="text-sm text-slate-600 dark:text-slate-400 leading-relaxed">
+                      {t.local_info_desc}
                     </p>
                   </div>
                   {!userLocation && (
                     <button 
                       onClick={fetchLocation}
-                      className="w-full py-4 bg-white border-2 border-slate-200 rounded-2xl font-black uppercase tracking-widest text-xs text-slate-600 hover:text-red-600 hover:border-red-200 transition-all flex items-center justify-center gap-3"
+                      className="w-full py-4 bg-white dark:bg-slate-800 border-2 border-slate-200 dark:border-slate-700 rounded-2xl font-black uppercase tracking-widest text-xs text-slate-600 dark:text-slate-300 hover:text-red-600 dark:hover:text-red-400 hover:border-red-200 dark:hover:border-red-900 transition-all flex items-center justify-center gap-3"
                     >
                       <MapPin size={18} />
-                      Aktifkan Lokasi Sekarang
+                      {t.activate_location}
                     </button>
                   )}
                 </div>
@@ -828,7 +1063,7 @@ Sambil menunggu analisis mendalam dari AI, berikut adalah langkah keselamatan st
 
               {userLocation && (
                 <div className="mt-12">
-                  <LocalEmergencyContacts lat={userLocation[0]} lng={userLocation[1]} />
+                  <LocalEmergencyContacts lat={userLocation[0]} lng={userLocation[1]} t={t} />
                 </div>
               )}
             </div>
@@ -843,11 +1078,11 @@ Sambil menunggu analisis mendalam dari AI, berikut adalah langkah keselamatan st
             <section>
               <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-6">
                 <div>
-                  <h2 className="text-3xl font-black tracking-tight text-slate-900">Butuh Bantuan Segera?</h2>
-                  <p className="text-slate-500 font-medium">Jelaskan situasi Anda, AI kami akan memberikan panduan taktis.</p>
+                  <h2 className="text-3xl font-black tracking-tight text-slate-900 dark:text-white transition-colors">{t.emergency_advice_title}</h2>
+                  <p className="text-slate-500 dark:text-slate-400 font-medium transition-colors">{t.emergency_advice_desc}</p>
                 </div>
               </div>
-              <EmergencyInput onSend={handleSend} isLoading={isLoading} />
+              <EmergencyInput onSend={handleSend} isLoading={isLoading} t={t} />
             </section>
 
             {/* Chat History */}
@@ -857,18 +1092,18 @@ Sambil menunggu analisis mendalam dari AI, berikut adalah langkah keselamatan st
                   <div 
                     key={msg.id} 
                     className={cn(
-                      "flex flex-col max-w-[85%] p-4 rounded-2xl text-sm",
+                      "flex flex-col max-w-[85%] p-4 rounded-2xl text-sm transition-colors",
                       msg.role === 'user' 
-                        ? "bg-slate-100 text-slate-700 self-end ml-auto rounded-tr-none" 
-                        : "bg-white border border-slate-100 text-slate-600 self-start mr-auto rounded-tl-none shadow-sm"
+                        ? "bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 self-end ml-auto rounded-tr-none" 
+                        : "bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 text-slate-600 dark:text-slate-400 self-start mr-auto rounded-tl-none shadow-sm"
                     )}
                   >
                     <div className="flex items-center gap-2 mb-1">
                       <span className="text-[10px] font-black uppercase tracking-widest opacity-40">
-                        {msg.role === 'user' ? 'Anda' : 'Asisten AI'}
+                        {msg.role === 'user' ? t.user : t.assistant}
                       </span>
                       <span className="text-[9px] opacity-30 font-medium">
-                        {msg.timestamp.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}
+                        {msg.timestamp.toLocaleTimeString(lang === 'id' ? 'id-ID' : 'en-US', { hour: '2-digit', minute: '2-digit' })}
                       </span>
                     </div>
                     <div className="markdown-body">
@@ -883,11 +1118,11 @@ Sambil menunggu analisis mendalam dari AI, berikut adalah langkah keselamatan st
                 
                 {/* Current User Input (Last message if it's from user) */}
                 {chatHistory[chatHistory.length - 1]?.role === 'user' && (
-                  <div className="flex flex-col max-w-[85%] p-4 rounded-2xl text-sm bg-slate-100 text-slate-700 self-end ml-auto rounded-tr-none">
+                  <div className="flex flex-col max-w-[85%] p-4 rounded-2xl text-sm bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 self-end ml-auto rounded-tr-none transition-colors">
                     <div className="flex items-center gap-2 mb-1">
-                      <span className="text-[10px] font-black uppercase tracking-widest opacity-40">Anda</span>
+                      <span className="text-[10px] font-black uppercase tracking-widest opacity-40">{t.user}</span>
                       <span className="text-[9px] opacity-30 font-medium">
-                        {chatHistory[chatHistory.length - 1].timestamp.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}
+                        {chatHistory[chatHistory.length - 1].timestamp.toLocaleTimeString(lang === 'id' ? 'id-ID' : 'en-US', { hour: '2-digit', minute: '2-digit' })}
                       </span>
                     </div>
                     <p>{chatHistory[chatHistory.length - 1].content}</p>
@@ -926,30 +1161,28 @@ Sambil menunggu analisis mendalam dari AI, berikut adalah langkah keselamatan st
             
             {!response && !isLoading && (
               <>
-                <QuickGuides />
+                <QuickGuides t={t} />
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-8">
-                  <div className="p-6 bg-white rounded-3xl border border-slate-100 shadow-sm hover:shadow-md transition-shadow">
-                    <div className="w-10 h-10 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center mb-4">
+                  <div className="p-6 bg-white dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-sm hover:shadow-md transition-all">
+                    <div className="w-10 h-10 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 rounded-2xl flex items-center justify-center mb-4 transition-colors">
                       <AlertCircle size={20} />
                     </div>
-                    <h3 className="font-bold text-slate-900 mb-2">Siaga Banjir</h3>
-                    <ul className="text-xs text-slate-500 space-y-2">
-                      <li className="flex gap-2"><span>•</span> Matikan aliran listrik dari saklar utama.</li>
-                      <li className="flex gap-2"><span>•</span> Amankan dokumen penting dalam wadah kedap air.</li>
-                      <li className="flex gap-2"><span>•</span> Pindahkan barang elektronik ke tempat tinggi.</li>
-                      <li className="flex gap-2"><span>•</span> Pantau informasi debit air dari sumber resmi.</li>
+                    <h3 className="font-bold text-slate-900 dark:text-white mb-2 transition-colors">{t.guides.banjir.title}</h3>
+                    <ul className="text-xs text-slate-500 dark:text-slate-400 space-y-2 transition-colors">
+                      {t.guides.banjir.steps.map((step: string, i: number) => (
+                        <li key={i} className="flex gap-2"><span>•</span> {step}</li>
+                      ))}
                     </ul>
                   </div>
-                  <div className="p-6 bg-white rounded-3xl border border-slate-100 shadow-sm hover:shadow-md transition-shadow">
-                    <div className="w-10 h-10 bg-orange-50 text-orange-600 rounded-2xl flex items-center justify-center mb-4">
+                  <div className="p-6 bg-white dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-sm hover:shadow-md transition-all">
+                    <div className="w-10 h-10 bg-orange-50 dark:bg-orange-900/20 text-orange-600 dark:text-orange-400 rounded-2xl flex items-center justify-center mb-4 transition-colors">
                       <Info size={20} />
                     </div>
-                    <h3 className="font-bold text-slate-900 mb-2">Tas Darurat (72 Jam)</h3>
-                    <ul className="text-xs text-slate-500 space-y-2">
-                      <li className="flex gap-2"><span>•</span> Air minum & makanan siap saji (3 hari).</li>
-                      <li className="flex gap-2"><span>•</span> Kotak P3K & obat-obatan pribadi.</li>
-                      <li className="flex gap-2"><span>•</span> Senter, baterai cadangan & powerbank.</li>
-                      <li className="flex gap-2"><span>•</span> Uang tunai, pakaian ganti & masker.</li>
+                    <h3 className="font-bold text-slate-900 dark:text-white mb-2 transition-colors">{t.guides.tas_darurat.title}</h3>
+                    <ul className="text-xs text-slate-500 dark:text-slate-400 space-y-2 transition-colors">
+                      {t.guides.tas_darurat.steps.map((step: string, i: number) => (
+                        <li key={i} className="flex gap-2"><span>•</span> {step}</li>
+                      ))}
                     </ul>
                   </div>
                 </div>
@@ -963,9 +1196,9 @@ Sambil menunggu analisis mendalam dari AI, berikut adalah langkah keselamatan st
             "lg:col-span-5 space-y-6",
             activeTab !== 'map' && "hidden lg:block"
           )}>
-            <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
+            <div className="bg-white dark:bg-slate-900 p-6 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm transition-colors">
               <div className="flex items-center justify-between mb-4">
-                <h3 className="font-black text-slate-900 uppercase tracking-wider text-xs">Peta Peringatan Dini</h3>
+                <h3 className="font-black text-slate-900 dark:text-white uppercase tracking-wider text-xs transition-colors">Peta Peringatan Dini</h3>
                 <div className="flex items-center gap-3">
                   <button 
                     onClick={() => setIsMapFullscreen(!isMapFullscreen)}
@@ -993,7 +1226,7 @@ Sambil menunggu analisis mendalam dari AI, berikut adalah langkah keselamatan st
                       "px-3 py-1 rounded-full text-[10px] font-bold whitespace-nowrap transition-all border",
                       selectedType === type 
                         ? "bg-red-600 border-red-600 text-white shadow-md shadow-red-600/20" 
-                        : "bg-white border-slate-200 text-slate-500 hover:border-red-200"
+                        : "bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 hover:border-red-200 dark:hover:border-red-700"
                     )}
                   >
                     {type}
@@ -1009,7 +1242,70 @@ Sambil menunggu analisis mendalam dari AI, berikut adalah langkah keselamatan st
                 isFullscreen={isMapFullscreen}
                 onToggleFullscreen={() => setIsMapFullscreen(false)}
               />
-              <BMKGGisInfo userLocation={userLocation} />
+              <BMKGGisInfo userLocation={userLocation} t={t} />
+              
+              {/* Weather Forecast Section in Map Tab */}
+              {weather && (
+                <div className="mt-4 p-5 bg-white dark:bg-slate-900 rounded-[24px] border border-slate-100 dark:border-slate-800 shadow-sm transition-colors">
+                  <div className="flex items-center justify-between mb-4">
+                    <h4 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-widest flex items-center gap-2">
+                      <Sun size={14} className="text-orange-500" />
+                      {t.weather_forecast}
+                    </h4>
+                    <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500">{weather.location}</span>
+                  </div>
+                  
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {/* Current Weather Card */}
+                    <div className="p-4 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-100 dark:border-slate-800 flex items-center gap-4 transition-colors">
+                      <div className="bg-white dark:bg-slate-900 p-3 rounded-xl shadow-sm transition-colors">
+                        {getWeatherIcon(weather.condition, 28, weather.icon)}
+                      </div>
+                      <div>
+                        <p className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-0.5">Saat Ini</p>
+                        <div className="flex items-baseline gap-1">
+                          <span className="text-xl font-black text-slate-900 dark:text-white">{weather.temp}°C</span>
+                          <span className="text-xs font-bold text-slate-600 dark:text-slate-400">{weather.condition}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Stats */}
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="p-3 bg-blue-50/50 dark:bg-blue-900/10 rounded-xl border border-blue-100/50 dark:border-blue-900/20 flex flex-col items-center justify-center transition-colors">
+                        <Thermometer size={14} className="text-blue-500 mb-1" />
+                        <span className="text-[10px] font-black text-slate-900 dark:text-white">{weather.humidity}%</span>
+                        <span className="text-[8px] font-bold text-slate-400 uppercase tracking-tighter">Kelembapan</span>
+                      </div>
+                      <div className="p-3 bg-emerald-50/50 dark:bg-emerald-900/10 rounded-xl border border-emerald-100/50 dark:border-emerald-900/20 flex flex-col items-center justify-center transition-colors">
+                        <Wind size={14} className="text-emerald-500 mb-1" />
+                        <span className="text-[10px] font-black text-slate-900 dark:text-white">{weather.windSpeed} <span className="text-[8px]">km/h</span></span>
+                        <span className="text-[8px] font-bold text-slate-400 uppercase tracking-tighter">Angin</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Hourly Forecast */}
+                  {weather.forecasts && weather.forecasts.length > 0 && (
+                    <div className="mt-4 pt-4 border-t border-slate-100 dark:border-slate-800">
+                      <p className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-3">Prakiraan Beberapa Jam Kedepan</p>
+                      <div className="flex items-center gap-3 overflow-x-auto pb-2 no-scrollbar">
+                        {weather.forecasts.map((f, i) => (
+                          <div key={i} className="flex flex-col items-center min-w-[85px] bg-slate-50/50 dark:bg-slate-800/30 rounded-xl py-3 px-2 border border-slate-100 dark:border-slate-800 transition-colors">
+                            <span className="text-[9px] font-black text-slate-500 dark:text-slate-400 mb-2">{f.time}</span>
+                            <div className="mb-2">
+                              {getWeatherIcon(f.condition, 18, f.icon)}
+                            </div>
+                            <span className="text-sm font-black text-slate-900 dark:text-white mb-0.5">{f.temp}°C</span>
+                            <span className="text-[8px] font-bold text-slate-500 dark:text-slate-400 text-center leading-tight line-clamp-1">{f.condition}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
               <div className="mt-4 space-y-3">
                 <div className={cn(
                   "flex items-start gap-3 p-3 rounded-2xl border transition-colors",
@@ -1017,14 +1313,14 @@ Sambil menunggu analisis mendalam dari AI, berikut adalah langkah keselamatan st
                 )}>
                   {nearbyEvents.length > 0 ? <AlertCircle size={16} className="text-red-600 mt-0.5" /> : <Navigation size={16} className="text-emerald-600 mt-0.5" />}
                   <div>
-                    <p className={cn("text-xs font-bold", nearbyEvents.length > 0 ? "text-red-900" : "text-emerald-900")}>
-                      {nearbyEvents.length > 0 ? "Bahaya Terdekat (Radius 5km)" : "Area Sekitar Aman"}
-                    </p>
-                    <p className={cn("text-[10px] font-medium", nearbyEvents.length > 0 ? "text-red-700" : "text-emerald-700")}>
-                      {nearbyEvents.length > 0 
-                        ? `Ditemukan ${nearbyEvents.length} ancaman dalam radius 5km.` 
-                        : "Tidak ada ancaman bencana terdeteksi di radius 5km."}
-                    </p>
+                <p className={cn("text-xs font-bold", nearbyEvents.length > 0 ? "text-red-900 dark:text-red-400" : "text-emerald-900 dark:text-emerald-400")}>
+                  {nearbyEvents.length > 0 ? t.nearby_hazard : t.area_safe}
+                </p>
+                <p className={cn("text-[10px] font-medium", nearbyEvents.length > 0 ? "text-red-700 dark:text-red-300" : "text-emerald-700 dark:text-emerald-300")}>
+                  {nearbyEvents.length > 0 
+                    ? t.hazard_found.replace('{count}', nearbyEvents.length.toString()) 
+                    : t.no_hazard}
+                </p>
                   </div>
                 </div>
                 
@@ -1037,7 +1333,9 @@ Sambil menunggu analisis mendalam dari AI, berikut adalah langkah keselamatan st
                     return (
                       <div key={event.id} className={cn(
                         "p-3 rounded-xl border flex items-center justify-between group transition-colors",
-                        isNearby ? "bg-red-50 border-red-200" : "bg-slate-50 border-slate-100 hover:border-red-200"
+                        isNearby 
+                          ? "bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-800" 
+                          : "bg-slate-50 dark:bg-slate-800/50 border-slate-100 dark:border-slate-800 hover:border-red-200 dark:hover:border-red-700"
                       )}>
                         <div className="flex items-center gap-3">
                           <div className={cn(
@@ -1045,11 +1343,11 @@ Sambil menunggu analisis mendalam dari AI, berikut adalah langkah keselamatan st
                             event.severity === 'High' ? "bg-red-500" : "bg-orange-500"
                           )} />
                           <div>
-                            <p className="text-[11px] font-bold text-slate-800 line-clamp-1">{event.title}</p>
+                            <p className="text-[11px] font-bold text-slate-800 dark:text-slate-200 line-clamp-1 transition-colors">{event.title}</p>
                             <div className="flex items-center gap-2">
-                              <p className="text-[9px] text-slate-400 uppercase font-bold tracking-tighter">{event.type}</p>
+                              <p className="text-[9px] text-slate-400 dark:text-slate-500 uppercase font-bold tracking-tighter transition-colors">{event.type}</p>
                               {dist !== null && (
-                                <p className="text-[9px] text-slate-500 font-bold">
+                                <p className="text-[9px] text-slate-500 dark:text-slate-400 font-bold transition-colors">
                                   • {dist.toFixed(1)} km
                                 </p>
                               )}
@@ -1062,36 +1360,36 @@ Sambil menunggu analisis mendalam dari AI, berikut adalah langkah keselamatan st
                               e.stopPropagation();
                               handleShare(event);
                             }}
-                            className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                            className="p-1.5 text-slate-400 dark:text-slate-500 hover:text-red-600 dark:hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
                             title="Bagikan Info"
                           >
                             <Share2 size={14} />
                           </button>
-                          <ChevronRight size={14} className="text-slate-300 group-hover:text-red-400 transition-colors" />
+                          <ChevronRight size={14} className="text-slate-300 dark:text-slate-600 group-hover:text-red-400 transition-colors" />
                         </div>
                       </div>
                     );
                   }) : (
                     <div className="text-center py-8">
-                      <p className="text-xs text-slate-400 font-medium italic">Tidak ada bencana tipe ini.</p>
+                      <p className="text-xs text-slate-400 dark:text-slate-500 font-medium italic transition-colors">{t.no_events_type}</p>
                     </div>
                   )}
                 </div>
 
                 {/* History Section */}
-                <div className="pt-4 border-t border-slate-100">
-                  <h4 className="flex items-center gap-2 text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">
+                <div className="pt-4 border-t border-slate-100 dark:border-slate-800 transition-colors">
+                  <h4 className="flex items-center gap-2 text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-3 transition-colors">
                     <History size={12} />
-                    Riwayat Bencana Terdekat
+                    {t.history_title}
                   </h4>
                   <div className="space-y-2">
                     {historyEvents.map((hist) => (
-                      <div key={hist.id} className="p-3 bg-slate-50/50 border border-slate-100 rounded-xl flex items-center justify-between">
+                      <div key={hist.id} className="p-3 bg-slate-50/50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 rounded-xl flex items-center justify-between transition-colors">
                         <div>
-                          <p className="text-[10px] font-bold text-slate-700">{hist.title}</p>
-                          <p className="text-[9px] text-slate-400">{hist.time} • {hist.location}</p>
+                          <p className="text-[10px] font-bold text-slate-700 dark:text-slate-300 transition-colors">{hist.title}</p>
+                          <p className="text-[9px] text-slate-400 dark:text-slate-500 transition-colors">{hist.time} • {hist.location}</p>
                         </div>
-                        <span className="text-[8px] font-black uppercase tracking-tighter text-slate-300">{hist.type}</span>
+                        <span className="text-[8px] font-black uppercase tracking-tighter text-slate-300 dark:text-slate-600 transition-colors">{hist.type}</span>
                       </div>
                     ))}
                   </div>
@@ -1100,15 +1398,15 @@ Sambil menunggu analisis mendalam dari AI, berikut adalah langkah keselamatan st
             </div>
 
             {!userLocation && !isLoading && (
-              <div className="p-6 bg-slate-50 border border-dashed border-slate-200 rounded-3xl text-center">
-                <Navigation size={24} className="mx-auto text-slate-300 mb-3" />
-                <p className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-1">Lokasi Belum Aktif</p>
-                <p className="text-[10px] text-slate-400 font-medium mb-4">Aktifkan lokasi untuk melihat nomor darurat lokal dan bahaya di sekitar Anda secara real-time.</p>
+              <div className="p-6 bg-slate-50 dark:bg-slate-900 border border-dashed border-slate-200 dark:border-slate-800 rounded-3xl text-center transition-colors">
+                <Navigation size={24} className="mx-auto text-slate-300 dark:text-slate-600 mb-3" />
+                <p className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-1 transition-colors">{t.location_inactive}</p>
+                <p className="text-[10px] text-slate-400 dark:text-slate-500 font-medium mb-4 transition-colors">{t.location_inactive_desc}</p>
                 <button 
                   onClick={fetchLocation}
-                  className="px-6 py-2 bg-white border border-slate-200 rounded-xl text-[10px] font-black uppercase tracking-widest text-slate-600 hover:text-red-600 hover:border-red-200 transition-all shadow-sm"
+                  className="px-6 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-[10px] font-black uppercase tracking-widest text-slate-600 dark:text-slate-400 hover:text-red-600 dark:hover:text-red-400 hover:border-red-200 dark:hover:border-red-900 transition-all shadow-sm"
                 >
-                  Ambil Lokasi Sekarang
+                  {t.activate_location}
                 </button>
               </div>
             )}
@@ -1127,8 +1425,8 @@ Sambil menunggu analisis mendalam dari AI, berikut adalah langkah keselamatan st
               <span className="text-[10px] font-black uppercase tracking-[0.2em]">SiagaBencana © 2026</span>
             </div>
             <div className="flex items-center gap-3 text-[9px] font-bold text-slate-400 uppercase tracking-widest">
-              <span className="bg-slate-100 px-2 py-0.5 rounded text-slate-600">v1.5.1-stable</span>
-              <span>Patch: 6 Mar 2026, 20:18</span>
+              <span className="bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded text-slate-600 dark:text-slate-400 transition-colors">v1.8.1-stable</span>
+              <span>Patch: 7 Mar 2026, 17:20 WIB</span>
             </div>
           </div>
           <div className="flex items-center gap-2">

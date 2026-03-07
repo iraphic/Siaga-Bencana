@@ -36,7 +36,7 @@ export const ResponseDisplay = ({ response, isLoading, isMinimal }: ResponseDisp
 
   if (isMinimal) {
     return (
-      <div className="markdown-body text-slate-600 text-sm">
+      <div className="markdown-body text-slate-600 dark:text-slate-300 text-sm transition-colors">
         <Markdown>{response || ""}</Markdown>
       </div>
     );
@@ -48,7 +48,7 @@ export const ResponseDisplay = ({ response, isLoading, isMinimal }: ResponseDisp
       animate={{ opacity: 1, y: 0 }}
       className="w-full max-w-2xl mx-auto mt-8"
     >
-      <div className="bg-white rounded-3xl shadow-xl shadow-slate-200/50 border border-slate-100 overflow-hidden">
+      <div className="bg-white dark:bg-slate-900 rounded-3xl shadow-xl shadow-slate-200/50 dark:shadow-none border border-slate-100 dark:border-slate-800 overflow-hidden transition-all">
         <div className="bg-red-600 px-6 py-4 flex flex-col gap-2">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2 text-white">
@@ -86,29 +86,29 @@ export const ResponseDisplay = ({ response, isLoading, isMinimal }: ResponseDisp
         <div className="p-8">
           {isLoading ? (
             <div className="space-y-4">
-              <div className="h-4 bg-slate-100 rounded-full w-3/4 animate-pulse" />
-              <div className="h-4 bg-slate-100 rounded-full w-full animate-pulse" />
-              <div className="h-4 bg-slate-100 rounded-full w-5/6 animate-pulse" />
-              <div className="h-4 bg-slate-100 rounded-full w-2/3 animate-pulse" />
+              <div className="h-4 bg-slate-100 dark:bg-slate-800 rounded-full w-3/4 animate-pulse" />
+              <div className="h-4 bg-slate-100 dark:bg-slate-800 rounded-full w-full animate-pulse" />
+              <div className="h-4 bg-slate-100 dark:bg-slate-800 rounded-full w-5/6 animate-pulse" />
+              <div className="h-4 bg-slate-100 dark:bg-slate-800 rounded-full w-2/3 animate-pulse" />
             </div>
           ) : (
-            <div className="markdown-body text-slate-700">
+            <div className="markdown-body text-slate-700 dark:text-slate-200 transition-colors">
               <Markdown>{response || ""}</Markdown>
             </div>
           )}
         </div>
 
-        <div className="bg-slate-50 px-8 py-4 border-t border-slate-100 flex items-center gap-3">
-          <div className="p-2 bg-emerald-100 text-emerald-600 rounded-full">
+        <div className="bg-slate-50 dark:bg-slate-800/50 px-8 py-4 border-t border-slate-100 dark:border-slate-800 flex items-center gap-3 transition-colors">
+          <div className="p-2 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 rounded-full">
             <CheckCircle2 size={16} />
           </div>
-          <p className="text-xs text-slate-500 font-medium">
+          <p className="text-xs text-slate-500 dark:text-slate-400 font-medium transition-colors">
             Tetap tenang. Bantuan sedang dalam perjalanan atau ikuti langkah di atas dengan hati-hati.
           </p>
         </div>
       </div>
       
-      <div className="mt-4 flex items-center justify-center gap-2 text-slate-400 text-[10px] font-bold uppercase tracking-widest">
+      <div className="mt-4 flex items-center justify-center gap-2 text-slate-400 dark:text-slate-500 text-[10px] font-bold uppercase tracking-widest transition-colors">
         <Info size={12} />
         <span>AI dapat membuat kesalahan. Prioritaskan instruksi petugas di lapangan.</span>
       </div>

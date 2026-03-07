@@ -8,13 +8,24 @@
 
 :root {
   --bg: #f8fafc;
+  --text: #1e293b;
+  --card-bg: #ffffff;
+  --border: #e2e8f0;
   --urgent: #ef4444;
   --safe: #10b981;
 }
 
+.dark {
+  --bg: #0f172a;
+  --text: #f1f5f9;
+  --card-bg: #1e293b;
+  --border: #334155;
+}
+
 body {
   background-color: var(--bg);
-  color: #1e293b;
+  color: var(--text);
+  transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 .leaflet-container {
@@ -34,6 +45,14 @@ body {
 ::-webkit-scrollbar-thumb {
   background: #cbd5e1;
   border-radius: 10px;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
 }
 
 .markdown-body h1, .markdown-body h2, .markdown-body h3 {

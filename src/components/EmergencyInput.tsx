@@ -6,9 +6,10 @@ import { cn } from '../utils/cn';
 interface EmergencyInputProps {
   onSend: (text: string) => void;
   isLoading: boolean;
+  t: any;
 }
 
-export const EmergencyInput = ({ onSend, isLoading }: EmergencyInputProps) => {
+export const EmergencyInput = ({ onSend, isLoading, t }: EmergencyInputProps) => {
   const [input, setInput] = useState('');
   const [isListening, setIsListening] = useState(false);
   const recognitionRef = useRef<any>(null);
@@ -69,11 +70,11 @@ export const EmergencyInput = ({ onSend, isLoading }: EmergencyInputProps) => {
               handleSubmit();
             }
           }}
-          placeholder="Apa situasi darurat Anda? (Ketik atau tekan mic)"
+          placeholder={t.emergency_placeholder}
           className={cn(
-            "w-full bg-white border-2 border-slate-200 rounded-2xl px-6 py-4 pr-24 min-h-[80px] max-h-[200px] resize-none",
+            "w-full bg-white dark:bg-slate-800 border-2 border-slate-200 dark:border-slate-700 rounded-2xl px-6 py-4 pr-24 min-h-[80px] max-h-[200px] resize-none transition-colors",
             "focus:outline-none focus:border-red-500 transition-all duration-300 shadow-sm",
-            "text-lg leading-relaxed placeholder:text-slate-400",
+            "text-lg leading-relaxed placeholder:text-slate-400 dark:text-white",
             isListening && "border-red-500 ring-4 ring-red-500/10"
           )}
         />
@@ -100,7 +101,7 @@ export const EmergencyInput = ({ onSend, isLoading }: EmergencyInputProps) => {
               "p-3 rounded-xl transition-all duration-300",
               input.trim() && !isLoading
                 ? "bg-red-600 text-white shadow-lg shadow-red-600/20 hover:scale-105 active:scale-95"
-                : "bg-slate-100 text-slate-300 cursor-not-allowed"
+                : "bg-slate-100 dark:bg-slate-700 text-slate-300 dark:text-slate-500 cursor-not-allowed"
             )}
           >
             {isLoading ? <Loader2 size={20} className="animate-spin" /> : <Send size={20} />}
@@ -115,13 +116,13 @@ export const EmergencyInput = ({ onSend, isLoading }: EmergencyInputProps) => {
               exit={{ opacity: 0, y: 10 }}
               className="absolute -top-10 left-1/2 -translate-x-1/2 bg-red-500 text-white px-4 py-1 rounded-full text-xs font-bold tracking-wider uppercase shadow-lg"
             >
-              Mendengarkan...
+              {t.listening}
             </motion.div>
           )}
         </AnimatePresence>
       </form>
-      <p className="mt-3 text-center text-slate-400 text-xs font-medium">
-        Contoh: "Banjir sudah masuk rumah, listrik masih menyala, apa yang harus saya lakukan?"
+      <p className="mt-3 text-center text-slate-400 dark:text-slate-500 text-xs font-medium transition-colors">
+        {t.emergency_example}
       </p>
     </div>
   );

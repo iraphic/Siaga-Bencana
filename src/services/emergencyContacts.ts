@@ -16,20 +16,22 @@ export async function getNearbyEmergencyContacts(lat: number, lng: number): Prom
   try {
     // 1. Get Location Name (Reverse Geocoding)
     let locationName = "Area Anda";
-    try {
-      const geoRes = await fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lng}&localityLanguage=id`);
-      if (geoRes.ok) {
-        const geoData = await geoRes.json();
-        console.log("Data Geocoding BigDataCloud:", geoData);
-        locationName = geoData.locality || geoData.city || geoData.principalSubdivision || "Area Anda";
-      } else {
-        throw new Error(`HTTP Error: ${geoRes.status}`);
+    if (lat && lng && !isNaN(lat) && !isNaN(lng)) {
+      try {
+        const geoRes = await fetch(`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${lat}&longitude=${lng}&localityLanguage=id`);
+        if (geoRes.ok) {
+          const geoData = await geoRes.json();
+          console.log("Data Geocoding BigDataCloud:", geoData);
+          locationName = geoData.locality || geoData.city || geoData.principalSubdivision || "Area Anda";
+        } else {
+          throw new Error(`HTTP Error: ${geoRes.status}`);
+        }
+      } catch (error: any) {
+        console.error("Pesan Error Geocoding:", error.message);
+        console.error("Nama Error Geocoding:", error.name);
+        // alert(`Gagal Fetch Geocoding: ${error.message || "Error tidak diketahui"}`);
+        console.warn("BigDataCloud geocoding failed, falling back to Gemini");
       }
-    } catch (error: any) {
-      console.error("Pesan Error Geocoding:", error.message);
-      console.error("Nama Error Geocoding:", error.name);
-      alert(`Gagal Fetch Geocoding: ${error.message || "Error tidak diketahui"}`);
-      console.warn("BigDataCloud geocoding failed, falling back to Gemini");
     }
 
     // 2. Use Gemini with Google Maps to find specific contacts
@@ -89,7 +91,7 @@ export async function getNearbyEmergencyContacts(lat: number, lng: number): Prom
     } catch (error: any) {
       console.error("Pesan Error Gemini:", error.message);
       console.error("Nama Error Gemini:", error.name);
-      alert(`Gagal Fetch Gemini: ${error.message || "Error tidak diketahui"}`);
+      // alert(`Gagal Fetch Gemini: ${error.message || "Error tidak diketahui"}`);
     }
 
     const contacts: EmergencyContact[] = [];
