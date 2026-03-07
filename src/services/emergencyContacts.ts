@@ -4,7 +4,7 @@ import { GoogleGenAI } from "@google/genai";
 export interface EmergencyContact {
   name: string;
   number: string;
-  type: 'hospital' | 'police' | 'fire' | 'sar' | 'pln' | 'general';
+  type: 'hospital' | 'police' | 'fire' | 'sar' | 'general';
   address?: string;
   distance?: number;
 }
@@ -33,15 +33,24 @@ export async function getNearbyEmergencyContacts(lat: number, lng: number): Prom
     }
 
     // 2. Use Gemini with Google Maps to find specific contacts
-    if (!process.env.GEMINI_API_KEY) {
-      console.error("CRITICAL: GEMINI_API_KEY is missing in getNearbyEmergencyContacts");
-      alert("API Key Gemini tidak ditemukan di Vercel! Pastikan Anda sudah menambahkan GEMINI_API_KEY di Environment Variables Vercel, lalu lakukan REDEPLOY.");
-      throw new Error("GEMINI_API_KEY is missing");
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey) {
+      console.error("GEMINI_API_KEY is missing");
+      return {
+        contacts: [
+          { name: 'Ambulans (Nasional)', number: '118', type: 'hospital' },
+          { name: 'Polisi (Nasional)', number: '110', type: 'police' },
+          { name: 'Pemadam Kebakaran (Nasional)', number: '113', type: 'fire' },
+          { name: 'Basarnas (Nasional)', number: '115', type: 'sar' },
+        ],
+        locationName: locationName
+      };
     }
-    const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+
+    const ai = new GoogleGenAI({ apiKey });
     
-    const prompt = `Cari daftar Rumah Sakit (RS), Polsek (Kantor Polisi), Pemadam Kebakaran (Damkar), Basarnas (Kantor SAR), dan PLN (Gangguan Listrik) terdekat di sekitar koordinat ${lat}, ${lng}. 
-    HANYA kembalikan 5 tipe ini. Jangan sertakan tipe lain.
+    const prompt = `Cari daftar Rumah Sakit (RS), Polsek (Kantor Polisi), Pemadam Kebakaran (Damkar), dan Basarnas (Kantor SAR) terdekat di sekitar koordinat ${lat}, ${lng}. 
+    HANYA kembalikan 4 tipe ini. Pastikan untuk menemukan Polsek/Kantor Polisi terdekat.
     
     Tentukan juga nama area (kecamatan atau kelurahan) dari koordinat tersebut dan tulis di baris pertama dengan format: AREA: [Nama Area]
     
@@ -54,10 +63,9 @@ export async function getNearbyEmergencyContacts(lat: number, lng: number): Prom
     [Polisi] Polsek Kebayoran | 0217654321 | Jl. Polisi No. 2
     [Damkar] Damkar Sektor X | 0219876543 | Jl. Api No. 3
     [SAR] Basarnas Jakarta | 0215501512 | Jl. SAR No. 4
-    [PLN] PLN Area X | 021123 | Jl. Listrik No. 5
     
     Pastikan nomor telepon adalah nomor telepon lokal (misalnya berawalan 021 untuk Jakarta, atau kode area lokal lainnya sesuai koordinat).
-    Hanya berikan daftar tersebut, maksimal 12 entri (berikan minimal 3 Polsek/Kantor Polisi jika tersedia).`;
+    Hanya berikan daftar tersebut, maksimal 8 entri (2 per tipe jika tersedia).`;
 
     let text = "";
     try {
@@ -81,12 +89,7 @@ export async function getNearbyEmergencyContacts(lat: number, lng: number): Prom
     } catch (error: any) {
       console.error("Pesan Error Gemini:", error.message);
       console.error("Nama Error Gemini:", error.name);
-      
-      if (error.message?.includes("403") && (error.message?.includes("referer") || error.message?.includes("blocked"))) {
-        alert("Kunci API Gemini diblokir oleh batasan domain (HTTP Referrer). Silakan gunakan kunci API tanpa batasan atau pilih kunci baru melalui menu pengaturan jika tersedia.");
-      } else {
-        alert(`Gagal Fetch Gemini: ${error.message || "Error tidak diketahui"}`);
-      }
+      alert(`Gagal Fetch Gemini: ${error.message || "Error tidak diketahui"}`);
     }
 
     const contacts: EmergencyContact[] = [];
@@ -104,13 +107,12 @@ export async function getNearbyEmergencyContacts(lat: number, lng: number): Prom
         const parts = line.split('|').map(p => p.trim());
         if (parts.length >= 2) {
           const typePart = parts[0].toLowerCase();
-          let type: 'hospital' | 'police' | 'fire' | 'sar' | 'pln' | 'general' = 'general';
+          let type: 'hospital' | 'police' | 'fire' | 'sar' | 'general' = 'general';
           
           if (typePart.includes('[rs]') || typePart.includes('rumah sakit')) type = 'hospital';
           else if (typePart.includes('[polisi]') || typePart.includes('polsek')) type = 'police';
           else if (typePart.includes('[damkar]') || typePart.includes('pemadam')) type = 'fire';
           else if (typePart.includes('[sar]') || typePart.includes('basarnas') || typePart.includes('search and rescue')) type = 'sar';
-          else if (typePart.includes('[pln]') || typePart.includes('listrik')) type = 'pln';
 
           // Only add if it's one of the requested types
           if (type !== 'general') {

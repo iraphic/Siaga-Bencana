@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Phone, MapPin, Hospital, Shield, Flame, Info, ExternalLink, LifeBuoy, RefreshCw, Zap } from 'lucide-react';
+import { Phone, MapPin, Hospital, Shield, Flame, Info, ExternalLink, LifeBuoy, RefreshCw } from 'lucide-react';
 import { motion } from 'motion/react';
 import { getNearbyEmergencyContacts, EmergencyContact } from '../services/emergencyContacts';
 import { cn } from '../utils/cn';
@@ -20,11 +20,10 @@ export const LocalEmergencyContacts = ({ lat, lng }: LocalEmergencyContactsProps
     setIsRefreshing(true);
     try {
       const data = await getNearbyEmergencyContacts(lat, lng);
-      // Sort police to the top
+      // Sort contacts: SAR first, then Police, then others
       const sortedContacts = [...data.contacts].sort((a, b) => {
-        if (a.type === 'police' && b.type !== 'police') return -1;
-        if (a.type !== 'police' && b.type === 'police') return 1;
-        return 0;
+        const order = { 'sar': 1, 'police': 2, 'hospital': 3, 'fire': 4, 'general': 5 };
+        return (order[a.type] || 99) - (order[b.type] || 99);
       });
       setContacts(sortedContacts);
       setLocationName(data.locationName);
@@ -51,7 +50,6 @@ export const LocalEmergencyContacts = ({ lat, lng }: LocalEmergencyContactsProps
       case 'police': return <Shield size={16} className="text-blue-600" />;
       case 'fire': return <Flame size={16} className="text-orange-600" />;
       case 'sar': return <LifeBuoy size={16} className="text-red-600" />;
-      case 'pln': return <Zap size={16} className="text-yellow-600" />;
       default: return <Info size={16} className="text-slate-600" />;
     }
   };
@@ -87,10 +85,20 @@ export const LocalEmergencyContacts = ({ lat, lng }: LocalEmergencyContactsProps
       </div>
 
       {loading ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-          {[1, 2, 3, 4].map((i) => (
-            <div key={i} className="h-20 bg-slate-50 animate-pulse rounded-2xl border border-slate-100" />
-          ))}
+        <div className="space-y-4">
+          <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
+            <motion.div 
+              initial={{ width: "0%" }}
+              animate={{ width: "100%" }}
+              transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+              className="h-full bg-red-600"
+            />
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {[1, 2, 3, 4].map((i) => (
+              <div key={i} className="h-20 bg-slate-50 animate-pulse rounded-2xl border border-slate-100" />
+            ))}
+          </div>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">

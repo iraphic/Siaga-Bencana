@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Shield, Map as MapIcon, MessageSquare, AlertCircle, Info, ChevronRight, Zap, Navigation, Smartphone, Download, Share2, History, Filter, Maximize2, Minimize2, Key } from 'lucide-react';
+import { Shield, Map as MapIcon, MessageSquare, AlertCircle, Info, ChevronRight, Zap, Navigation, Smartphone, Download, Share2, History, Filter, Maximize2, Minimize2, Phone, MapPin } from 'lucide-react';
 import { EmergencyMap, DisasterEvent } from './components/EmergencyMap';
 import { BMKGGisInfo } from './components/BMKGGisInfo';
 import { EmergencyInput } from './components/EmergencyInput';
@@ -35,7 +35,7 @@ export default function App() {
   const [isFetchingLocation, setIsFetchingLocation] = useState(false);
   const [response, setResponse] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [activeTab, setActiveTab] = useState<'chat' | 'map'>('chat');
+  const [activeTab, setActiveTab] = useState<'chat' | 'map' | 'emergency'>('chat');
   const [events, setEvents] = useState<DisasterEvent[]>([]);
   const [isMapFullscreen, setIsMapFullscreen] = useState(false);
   const [bmkgGempa, setBmkgGempa] = useState<any>(null);
@@ -676,6 +676,15 @@ Sambil menunggu analisis mendalam dari AI, berikut adalah langkah keselamatan st
             >
               Peta Bahaya
             </button>
+            <button 
+              onClick={() => setActiveTab('emergency')}
+              className={cn(
+                "text-sm font-bold uppercase tracking-widest transition-colors",
+                activeTab === 'emergency' ? "text-red-600" : "text-slate-400 hover:text-slate-600"
+              )}
+            >
+              Nomor Darurat
+            </button>
           </div>
 
           <div className="flex items-center gap-2 bg-emerald-50 text-emerald-700 px-3 py-1.5 rounded-full border border-emerald-100">
@@ -704,24 +713,6 @@ Sambil menunggu analisis mendalam dari AI, berikut adalah langkah keselamatan st
               <Zap size={18} className={Notification.permission === 'granted' ? "fill-emerald-600" : ""} />
             </button>
           )}
-
-          {/* AI Studio Key Selection */}
-          {(window as any).aistudio && (
-            <button 
-              onClick={async () => {
-                try {
-                  await (window as any).aistudio.openSelectKey();
-                  window.location.reload(); // Reload to apply new key
-                } catch (err) {
-                  console.error("Failed to open key selector", err);
-                }
-              }}
-              className="p-2 rounded-xl text-slate-400 bg-slate-100 hover:text-blue-600 hover:bg-blue-50 transition-all"
-              title="Pilih API Key (AI Studio)"
-            >
-              <Key size={18} />
-            </button>
-          )}
         </div>
       </header>
 
@@ -734,31 +725,121 @@ Sambil menunggu analisis mendalam dari AI, berikut adalah langkah keselamatan st
               setShowInstallBanner(true);
             }}
             className={cn(
-              "flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-bold transition-all",
+              "flex-1 flex items-center justify-center gap-1 py-3 rounded-xl text-[10px] font-bold transition-all",
               activeTab === 'chat' ? "bg-red-600 text-white shadow-lg shadow-red-600/20" : "text-slate-500"
             )}
           >
-            <MessageSquare size={18} />
+            <MessageSquare size={14} />
             Chat
           </button>
           <button
             onClick={() => setActiveTab('map')}
             className={cn(
-              "flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-bold transition-all",
+              "flex-1 flex items-center justify-center gap-1 py-3 rounded-xl text-[10px] font-bold transition-all",
               activeTab === 'map' ? "bg-red-600 text-white shadow-lg shadow-red-600/20" : "text-slate-500"
             )}
           >
-            <MapIcon size={18} />
+            <MapIcon size={14} />
             Peta
+          </button>
+          <button
+            onClick={() => setActiveTab('emergency')}
+            className={cn(
+              "flex-1 flex items-center justify-center gap-1 py-3 rounded-xl text-[10px] font-bold transition-all",
+              activeTab === 'emergency' ? "bg-red-600 text-white shadow-lg shadow-red-600/20" : "text-slate-500"
+            )}
+          >
+            <Phone size={14} />
+            Kontak
           </button>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-          {/* Main Content Area */}
-          <div className={cn(
-            "lg:col-span-7 space-y-8",
-            activeTab === 'map' && "hidden lg:block"
-          )}>
+        {activeTab === 'emergency' ? (
+          <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+            <div className="bg-white p-8 rounded-[32px] border border-slate-200 shadow-sm">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8">
+                <div>
+                  <h2 className="text-3xl font-black tracking-tight text-slate-900">Nomor Darurat</h2>
+                  <p className="text-slate-500 font-medium">Akses cepat ke layanan darurat nasional dan lokal di sekitar Anda.</p>
+                </div>
+                <div className="flex items-center gap-3 bg-red-50 px-4 py-2 rounded-2xl border border-red-100">
+                  <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
+                  <span className="text-xs font-black text-red-700 uppercase tracking-widest">Siaga 24 Jam</span>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                {/* National Numbers */}
+                <div className="bg-slate-900 text-white p-8 rounded-[24px] shadow-xl shadow-slate-900/20">
+                  <h3 className="text-lg font-bold mb-6 flex items-center gap-3">
+                    <Shield size={24} className="text-red-500" />
+                    Layanan Nasional
+                  </h3>
+                  <div className="grid grid-cols-2 gap-y-8 gap-x-4">
+                    <div className="space-y-1">
+                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Ambulans</p>
+                      <p className="text-2xl font-black">118 / 119</p>
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Polisi</p>
+                      <p className="text-2xl font-black">110</p>
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Pemadam</p>
+                      <p className="text-2xl font-black">113</p>
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Basarnas</p>
+                      <p className="text-2xl font-black">115</p>
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">PLN (Gangguan)</p>
+                      <p className="text-2xl font-black">123</p>
+                    </div>
+                    <div className="space-y-1">
+                      <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Panggilan Darurat</p>
+                      <p className="text-2xl font-black text-red-500">112</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Local Context Info */}
+                <div className="flex flex-col justify-center space-y-6">
+                  <div className="p-6 bg-slate-50 rounded-2xl border border-slate-100">
+                    <h4 className="font-bold text-slate-900 mb-2 flex items-center gap-2">
+                      <Navigation size={18} className="text-blue-600" />
+                      Informasi Lokasi
+                    </h4>
+                    <p className="text-sm text-slate-600 leading-relaxed">
+                      Nomor darurat lokal akan muncul secara otomatis berdasarkan lokasi GPS Anda. Pastikan izin lokasi aktif untuk mendapatkan kontak instansi terdekat.
+                    </p>
+                  </div>
+                  {!userLocation && (
+                    <button 
+                      onClick={fetchLocation}
+                      className="w-full py-4 bg-white border-2 border-slate-200 rounded-2xl font-black uppercase tracking-widest text-xs text-slate-600 hover:text-red-600 hover:border-red-200 transition-all flex items-center justify-center gap-3"
+                    >
+                      <MapPin size={18} />
+                      Aktifkan Lokasi Sekarang
+                    </button>
+                  )}
+                </div>
+              </div>
+
+              {userLocation && (
+                <div className="mt-12">
+                  <LocalEmergencyContacts lat={userLocation[0]} lng={userLocation[1]} />
+                </div>
+              )}
+            </div>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+            {/* Main Content Area */}
+            <div className={cn(
+              "lg:col-span-7 space-y-8",
+              activeTab !== 'chat' && "hidden lg:block"
+            )}>
             <section>
               <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-6">
                 <div>
@@ -880,7 +961,7 @@ Sambil menunggu analisis mendalam dari AI, berikut adalah langkah keselamatan st
           {/* Sidebar / Map Area */}
           <div className={cn(
             "lg:col-span-5 space-y-6",
-            activeTab === 'chat' && "hidden lg:block"
+            activeTab !== 'map' && "hidden lg:block"
           )}>
             <div className="bg-white p-6 rounded-3xl border border-slate-200 shadow-sm">
               <div className="flex items-center justify-between mb-4">
@@ -1032,44 +1113,9 @@ Sambil menunggu analisis mendalam dari AI, berikut adalah langkah keselamatan st
               </div>
             )}
 
-            {userLocation && (
-              <LocalEmergencyContacts lat={userLocation[0]} lng={userLocation[1]} />
-            )}
-
-            <div className="bg-slate-900 text-white p-6 rounded-3xl shadow-xl shadow-slate-900/20">
-              <h3 className="font-bold mb-4 flex items-center gap-2">
-                <Shield size={18} className="text-red-500" />
-                Nomor Darurat (Indonesia)
-              </h3>
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1">
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Ambulans</p>
-                  <p className="text-xl font-black">118 / 119</p>
-                </div>
-                <div className="space-y-1">
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Polisi</p>
-                  <p className="text-xl font-black">110</p>
-                </div>
-                <div className="space-y-1">
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Pemadam</p>
-                  <p className="text-xl font-black">113</p>
-                </div>
-                <div className="space-y-1">
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Basarnas</p>
-                  <p className="text-xl font-black">115</p>
-                </div>
-                <div className="space-y-1">
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">PLN (Listrik)</p>
-                  <p className="text-xl font-black">123</p>
-                </div>
-                <div className="space-y-1">
-                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">BNPB</p>
-                  <p className="text-xl font-black">117</p>
-                </div>
-              </div>
             </div>
           </div>
-        </div>
+        )}
       </main>
 
       {/* Footer / Disclaimer */}
@@ -1081,8 +1127,8 @@ Sambil menunggu analisis mendalam dari AI, berikut adalah langkah keselamatan st
               <span className="text-[10px] font-black uppercase tracking-[0.2em]">SiagaBencana © 2026</span>
             </div>
             <div className="flex items-center gap-3 text-[9px] font-bold text-slate-400 uppercase tracking-widest">
-              <span className="bg-slate-100 px-2 py-0.5 rounded text-slate-600">v1.4.4-stable</span>
-              <span>Patch: 6 Mar 2026, 13:25</span>
+              <span className="bg-slate-100 px-2 py-0.5 rounded text-slate-600">v1.5.1-stable</span>
+              <span>Patch: 6 Mar 2026, 20:18</span>
             </div>
           </div>
           <div className="flex items-center gap-2">
