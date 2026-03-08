@@ -86,6 +86,9 @@ export const translations = {
     weather_forecast: "Prakiraan Cuaca",
     weather_loading: "Memuat info cuaca...",
     weather_error: "Gagal memuat cuaca",
+    wind_direction: "Arah Angin",
+    wind_speed: "Kecepatan Angin",
+    humidity: "Kelembapan",
     download_chat: "Unduh PDF Konsultasi",
     national_numbers: {
       ambulance: "Ambulans",
@@ -182,6 +185,9 @@ export const translations = {
     weather_forecast: "Weather Forecast",
     weather_loading: "Loading weather info...",
     weather_error: "Failed to load weather",
+    wind_direction: "Wind Direction",
+    wind_speed: "Wind Speed",
+    humidity: "Humidity",
     download_chat: "Download Consultation PDF",
     national_numbers: {
       ambulance: "Ambulance",

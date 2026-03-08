@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Flame, Wind, CloudRain, Activity, MapPin, Loader2 } from 'lucide-react';
 import { cn } from '../utils/cn';
+import { fetchWithProxy } from '../utils/fetchWithProxy';
 
 interface GisData {
   fireIndex: string;
@@ -22,15 +23,9 @@ export const BMKGGisInfo = ({ userLocation, t }: { userLocation: [number, number
         // 1. Fetch Fire Index (FDRS) from BMKG
         let fireStatus = "Normal";
         try {
-          const fireRes = await fetch('https://data.bmkg.go.id/DataMKG/IKL/fdmc_indonesia.json');
-          if (fireRes.ok) {
-            const fireData = await fireRes.json();
-            // FDRS data is usually a grid or list of stations. 
-            // For simplicity in this UI, we check the general status or first few entries
-            // In a full implementation, we'd find the nearest grid point to userLocation
-            if (fireData && fireData.fdmc && fireData.fdmc.length > 0) {
-              fireStatus = fireData.fdmc[0].status || "Rendah";
-            }
+          const fireData = await fetchWithProxy('https://data.bmkg.go.id/DataMKG/IKL/fdmc_indonesia.json');
+          if (fireData && fireData.fdmc && fireData.fdmc.length > 0) {
+            fireStatus = fireData.fdmc[0].status || "Rendah";
           }
         } catch (e) {
           console.warn("Fire index fetch failed, using fallback");

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { jsPDF } from 'jspdf';
 import { translations } from './translations';
-import { Shield, Map as MapIcon, MessageSquare, AlertCircle, Info, ChevronRight, Zap, Navigation, Smartphone, Download, Share2, History, Filter, Maximize2, Minimize2, Phone, MapPin, Sun, Languages, CloudRain, CloudLightning, Cloud, Thermometer, Wind } from 'lucide-react';
+import { Shield, Map as MapIcon, MessageSquare, AlertCircle, Info, ChevronRight, Zap, Navigation, Smartphone, Download, Share2, History, Filter, Maximize2, Minimize2, Phone, MapPin, Sun, Languages, CloudRain, CloudLightning, Cloud, Thermometer, Wind, Compass } from 'lucide-react';
 import { EmergencyMap, DisasterEvent } from './components/EmergencyMap';
 import { BMKGGisInfo } from './components/BMKGGisInfo';
 import { EmergencyInput } from './components/EmergencyInput';
@@ -11,6 +11,7 @@ import { QuickGuides } from './components/QuickGuides';
 import { getEmergencyAdvice } from './services/geminiService';
 import { LocalEmergencyContacts } from './components/LocalEmergencyContacts';
 import { cn } from './utils/cn';
+import { fetchWithProxy } from './utils/fetchWithProxy';
 
 // Haversine formula to calculate distance in km
 const getDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
@@ -40,6 +41,7 @@ export interface WeatherInfo {
   description: string;
   humidity?: number;
   windSpeed?: number;
+  windDirection?: string;
   forecasts?: WeatherForecast[];
 }
 
@@ -89,56 +91,34 @@ export default function App() {
     }
   }, [theme]);
 
+  const getWindDirection = (code: string) => {
+    const directions: { [key: string]: string } = {
+      'N': lang === 'id' ? 'Utara' : 'North',
+      'NNE': lang === 'id' ? 'Utara Timur Laut' : 'North-Northeast',
+      'NE': lang === 'id' ? 'Timur Laut' : 'Northeast',
+      'ENE': lang === 'id' ? 'Timur Timur Laut' : 'East-Northeast',
+      'E': lang === 'id' ? 'Timur' : 'East',
+      'ESE': lang === 'id' ? 'Timur Tenggara' : 'East-Southeast',
+      'SE': lang === 'id' ? 'Tenggara' : 'Southeast',
+      'SSE': lang === 'id' ? 'Selatan Tenggara' : 'South-Southeast',
+      'S': lang === 'id' ? 'Selatan' : 'South',
+      'SSW': lang === 'id' ? 'Selatan Barat Daya' : 'South-Southwest',
+      'SW': lang === 'id' ? 'Barat Daya' : 'Southwest',
+      'WSW': lang === 'id' ? 'Barat Barat Daya' : 'West-Southwest',
+      'W': lang === 'id' ? 'Barat' : 'West',
+      'WNW': lang === 'id' ? 'Barat Barat Laut' : 'West-Northwest',
+      'NW': lang === 'id' ? 'Barat Laut' : 'Northwest',
+      'NNW': lang === 'id' ? 'Utara Barat Laut' : 'North-Northwest',
+      'VARIABLE': lang === 'id' ? 'Berubah-ubah' : 'Variable'
+    };
+    return directions[code.toUpperCase()] || code;
+  };
+
   const fetchWeather = async (lat: number, lon: number) => {
     setIsFetchingWeather(true);
     
     try {
       const apiUrl = `https://openapi.de4a.space/api/weather/forecast?lat=${lat}&long=${lon}`;
-      
-      // Robust fetch with multiple proxy fallbacks
-      const fetchWithProxy = async (targetUrl: string) => {
-        const proxies = [
-          `https://api.allorigins.win/get?url=${encodeURIComponent(targetUrl)}`,
-          `https://corsproxy.io/?${encodeURIComponent(targetUrl)}`,
-          `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(targetUrl)}`,
-          `https://thingproxy.freeboard.io/fetch/${targetUrl}`
-        ];
-
-        for (const proxyUrl of proxies) {
-          try {
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 8000);
-            
-            const res = await fetch(proxyUrl, { signal: controller.signal });
-            clearTimeout(timeoutId);
-            
-            if (!res.ok) continue;
-            
-            if (proxyUrl.includes('allorigins')) {
-              const data = await res.json();
-              if (data.contents) return JSON.parse(data.contents);
-            } else {
-              const text = await res.text();
-              try {
-                return JSON.parse(text);
-              } catch (e) {
-                continue;
-              }
-            }
-          } catch (e) {
-            console.warn(`Proxy ${proxyUrl} failed:`, e);
-            await new Promise(r => setTimeout(r, 500));
-          }
-        }
-        
-        try {
-          const res = await fetch(targetUrl);
-          if (res.ok) return await res.json();
-        } catch (e) {}
-        
-        throw new Error("All proxies failed to load weather data");
-      };
-
       const weatherData = await fetchWithProxy(apiUrl);
       
       if (weatherData && weatherData.status === 1 && weatherData.data && weatherData.data.length > 0) {
@@ -195,6 +175,7 @@ export default function App() {
           description: current.weather_desc,
           humidity: current.hu,
           windSpeed: current.ws,
+          windDirection: current.wd,
           forecasts: nextForecasts
         });
       }
@@ -320,30 +301,24 @@ export default function App() {
         
         // 1. Fetch BMKG Earthquake
         try {
-          const bmkgResponse = await fetch('https://data.bmkg.go.id/DataMKG/TEWS/autogempa.json', { cache: 'no-store' });
-          if (bmkgResponse.ok) {
-            const text = await bmkgResponse.text();
-            try {
-              const bmkgData = JSON.parse(text);
-              const gempa = bmkgData?.Infogempa?.gempa;
-              if (gempa) {
-                setBmkgGempa(gempa);
-                const [lat, lng] = gempa.Coordinates.split(',').map(Number);
-                const eventId = `bmkg-${gempa.Tanggal}-${gempa.Jam}-${gempa.Magnitude}`;
-                allEvents.push({
-                  id: eventId,
-                  title: `Gempa M ${gempa.Magnitude}`,
-                  type: 'Earthquake',
-                  lat: lat,
-                  lng: lng,
-                  severity: parseFloat(gempa.Magnitude) >= 5 ? 'High' : 'Medium',
-                  time: `${gempa.Tanggal} ${gempa.Jam}`,
-                  location: gempa.Wilayah,
-                  source: 'BMKG'
-                });
-              }
-            } catch (parseError) {
-              console.warn("BMKG JSON parse failed");
+          const bmkgData = await fetchWithProxy('https://data.bmkg.go.id/DataMKG/TEWS/autogempa.json');
+          if (bmkgData) {
+            const gempa = bmkgData?.Infogempa?.gempa;
+            if (gempa) {
+              setBmkgGempa(gempa);
+              const [lat, lng] = gempa.Coordinates.split(',').map(Number);
+              const eventId = `bmkg-${gempa.Tanggal}-${gempa.Jam}-${gempa.Magnitude}`;
+              allEvents.push({
+                id: eventId,
+                title: `Gempa M ${gempa.Magnitude}`,
+                type: 'Earthquake',
+                lat: lat,
+                lng: lng,
+                severity: parseFloat(gempa.Magnitude) >= 5 ? 'High' : 'Medium',
+                time: `${gempa.Tanggal} ${gempa.Jam}`,
+                location: gempa.Wilayah,
+                source: 'BMKG'
+              });
             }
           }
         } catch (e) {
@@ -352,28 +327,20 @@ export default function App() {
 
         // 2. Fetch GDACS for global/other events
         try {
-          const response = await fetch('https://www.gdacs.org/gdacsapi/api/events/geteventlist/json');
-          if (response.ok) {
-            const text = await response.text();
-            try {
-              const data = JSON.parse(text);
-              if (data && data.features) {
-                const realEvents = data.features.slice(0, 10).map((f: any) => ({
-                  id: f.properties.eventid || Math.random().toString(),
-                  title: f.properties.eventname || 'Bencana Global',
-                  type: f.properties.eventtype || 'Unknown',
-                  lat: f.geometry.coordinates[1],
-                  lng: f.geometry.coordinates[0],
-                  severity: f.properties.severitydata?.severity || 'Unknown',
-                  time: f.properties.fromdate ? new Date(f.properties.fromdate).toLocaleString('id-ID') : 'Tidak diketahui',
-                  location: f.properties.country || 'Global',
-                  source: 'GDACS'
-                }));
-                allEvents = [...allEvents, ...realEvents];
-              }
-            } catch (parseError) {
-              console.warn("GDACS JSON parse failed");
-            }
+          const data = await fetchWithProxy('https://www.gdacs.org/gdacsapi/api/events/geteventlist/json');
+          if (data && data.features) {
+            const realEvents = data.features.slice(0, 10).map((f: any) => ({
+              id: f.properties.eventid || Math.random().toString(),
+              title: f.properties.eventname || 'Bencana Global',
+              type: f.properties.eventtype || 'Unknown',
+              lat: f.geometry.coordinates[1],
+              lng: f.geometry.coordinates[0],
+              severity: f.properties.severitydata?.severity || 'Unknown',
+              time: f.properties.fromdate ? new Date(f.properties.fromdate).toLocaleString('id-ID') : 'Tidak diketahui',
+              location: f.properties.country || 'Global',
+              source: 'GDACS'
+            }));
+            allEvents = [...allEvents, ...realEvents];
           }
         } catch (e) {
           console.error("Error fetching GDACS data:", e);
@@ -860,16 +827,6 @@ Sambil menunggu analisis mendalam dari AI, berikut adalah langkah keselamatan st
                     <div className="flex items-center gap-2 mt-0.5">
                       <span className="text-sm font-black text-slate-900 dark:text-white">{weather.temp}°C</span>
                       <span className="text-sm font-bold text-slate-600 dark:text-slate-300 truncate">{weather.condition}</span>
-                      {weather.humidity && (
-                        <span className="hidden md:flex items-center gap-1 text-[10px] font-bold text-slate-400 ml-2">
-                          <Thermometer size={10} /> {weather.humidity}%
-                        </span>
-                      )}
-                      {weather.windSpeed && (
-                        <span className="hidden md:flex items-center gap-1 text-[10px] font-bold text-slate-400 ml-1">
-                          <Wind size={10} /> {weather.windSpeed} km/h
-                        </span>
-                      )}
                     </div>
                   </div>
                 </div>
@@ -879,6 +836,27 @@ Sambil menunggu analisis mendalam dari AI, berikut adalah langkah keselamatan st
                 >
                   {lang === 'id' ? 'Tutup' : 'Close'}
                 </button>
+              </div>
+
+              {/* Weather Detail Cards */}
+              <div className="grid grid-cols-3 gap-2 mb-4">
+                <div className="bg-slate-50 dark:bg-slate-800/50 p-2.5 rounded-2xl border border-slate-100 dark:border-slate-800 flex flex-col items-center transition-colors">
+                  <Thermometer size={14} className="text-blue-500 mb-1" />
+                  <span className="text-[8px] font-bold text-slate-400 uppercase tracking-tighter mb-0.5">{t.humidity}</span>
+                  <span className="text-xs font-black text-slate-900 dark:text-white">{weather.humidity}%</span>
+                </div>
+                <div className="bg-slate-50 dark:bg-slate-800/50 p-2.5 rounded-2xl border border-slate-100 dark:border-slate-800 flex flex-col items-center transition-colors">
+                  <Wind size={14} className="text-emerald-500 mb-1" />
+                  <span className="text-[8px] font-bold text-slate-400 uppercase tracking-tighter mb-0.5">{t.wind_speed}</span>
+                  <span className="text-xs font-black text-slate-900 dark:text-white">{weather.windSpeed} km/h</span>
+                </div>
+                <div className="bg-slate-50 dark:bg-slate-800/50 p-2.5 rounded-2xl border border-slate-100 dark:border-slate-800 flex flex-col items-center transition-colors">
+                  <Compass size={14} className="text-orange-500 mb-1" />
+                  <span className="text-[8px] font-bold text-slate-400 uppercase tracking-tighter mb-0.5">{t.wind_direction}</span>
+                  <span className="text-xs font-black text-slate-900 dark:text-white truncate w-full text-center">
+                    {weather.windDirection ? getWindDirection(weather.windDirection) : '-'}
+                  </span>
+                </div>
               </div>
 
               {/* Forecast Row */}
@@ -1360,16 +1338,23 @@ Sambil menunggu analisis mendalam dari AI, berikut adalah langkah keselamatan st
                     </div>
 
                     {/* Stats */}
-                    <div className="grid grid-cols-2 gap-2">
+                    <div className="grid grid-cols-3 gap-2">
                       <div className="p-3 bg-blue-50/50 dark:bg-blue-900/10 rounded-xl border border-blue-100/50 dark:border-blue-900/20 flex flex-col items-center justify-center transition-colors">
                         <Thermometer size={14} className="text-blue-500 mb-1" />
                         <span className="text-[10px] font-black text-slate-900 dark:text-white">{weather.humidity}%</span>
-                        <span className="text-[8px] font-bold text-slate-400 uppercase tracking-tighter">Kelembapan</span>
+                        <span className="text-[8px] font-bold text-slate-400 uppercase tracking-tighter">{t.humidity}</span>
                       </div>
                       <div className="p-3 bg-emerald-50/50 dark:bg-emerald-900/10 rounded-xl border border-emerald-100/50 dark:border-emerald-900/20 flex flex-col items-center justify-center transition-colors">
                         <Wind size={14} className="text-emerald-500 mb-1" />
                         <span className="text-[10px] font-black text-slate-900 dark:text-white">{weather.windSpeed} <span className="text-[8px]">km/h</span></span>
-                        <span className="text-[8px] font-bold text-slate-400 uppercase tracking-tighter">Angin</span>
+                        <span className="text-[8px] font-bold text-slate-400 uppercase tracking-tighter">{lang === 'id' ? 'Angin' : 'Wind'}</span>
+                      </div>
+                      <div className="p-3 bg-orange-50/50 dark:bg-orange-900/10 rounded-xl border border-orange-100/50 dark:border-orange-900/20 flex flex-col items-center justify-center transition-colors">
+                        <Compass size={14} className="text-orange-500 mb-1" />
+                        <span className="text-[10px] font-black text-slate-900 dark:text-white truncate w-full text-center">
+                          {weather.windDirection ? getWindDirection(weather.windDirection) : '-'}
+                        </span>
+                        <span className="text-[8px] font-bold text-slate-400 uppercase tracking-tighter">{t.wind_direction}</span>
                       </div>
                     </div>
                   </div>
@@ -1514,8 +1499,8 @@ Sambil menunggu analisis mendalam dari AI, berikut adalah langkah keselamatan st
               <span className="text-[10px] font-black uppercase tracking-[0.2em]">SiagaBencana © 2026</span>
             </div>
             <div className="flex items-center gap-3 text-[9px] font-bold text-slate-400 uppercase tracking-widest">
-              <span className="bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded text-slate-600 dark:text-slate-400 transition-colors">v1.8.7-stable</span>
-              <span>Patch: 7 Mar 2026, 21:30 WIB</span>
+              <span className="bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded text-slate-600 dark:text-slate-400 transition-colors">v1.9.1-stable</span>
+              <span>Patch: 8 Mar 2026, 21:20 WIB</span>
             </div>
           </div>
           <div className="flex items-center gap-2">
