@@ -1,4 +1,5 @@
 
+import { GoogleGenAI } from "@google/genai";
 
 export interface EmergencyContact {
   name: string;
@@ -33,28 +34,64 @@ export async function getNearbyEmergencyContacts(lat: number, lng: number): Prom
       }
     }
 
-    // 2. Use Gemini with Google Maps to find specific contacts via Backend
+    // 2. Use Gemini with Google Maps to find specific contacts
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey) {
+      console.error("GEMINI_API_KEY is missing");
+      return {
+        contacts: [
+          { name: 'Ambulans (Nasional)', number: '118', type: 'hospital' },
+          { name: 'Polisi (Nasional)', number: '110', type: 'police' },
+          { name: 'Pemadam Kebakaran (Nasional)', number: '113', type: 'fire' },
+          { name: 'Basarnas (Nasional)', number: '115', type: 'sar' },
+        ],
+        locationName: locationName
+      };
+    }
+
+    const ai = new GoogleGenAI({ apiKey });
+    
+    const prompt = `Cari daftar Rumah Sakit (RS), Polsek (Kantor Polisi), Pemadam Kebakaran (Damkar), dan Basarnas (Kantor SAR) terdekat di sekitar koordinat ${lat}, ${lng}. 
+    HANYA kembalikan 4 tipe ini. Pastikan untuk menemukan Polsek/Kantor Polisi terdekat.
+    
+    Tentukan juga nama area (kecamatan atau kelurahan) dari koordinat tersebut dan tulis di baris pertama dengan format: AREA: [Nama Area]
+    
+    Berikan daftar dalam format baris per baris seperti ini:
+    [Tipe] Nama Tempat | Nomor Telepon | Alamat
+    
+    Contoh format:
+    AREA: Pancoran
+    [RS] RS Medika | 0211234567 | Jl. Merdeka No. 1
+    [Polisi] Polsek Kebayoran | 0217654321 | Jl. Polisi No. 2
+    [Damkar] Damkar Sektor X | 0219876543 | Jl. Api No. 3
+    [SAR] Basarnas Jakarta | 0215501512 | Jl. SAR No. 4
+    
+    Pastikan nomor telepon adalah nomor telepon lokal (misalnya berawalan 021 untuk Jakarta, atau kode area lokal lainnya sesuai koordinat).
+    Hanya berikan daftar tersebut, maksimal 8 entri (2 per tipe jika tersedia).`;
+
     let text = "";
     try {
-      const response = await fetch("/api/ai/contacts", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
+      const response = await ai.models.generateContent({
+        model: "gemini-2.5-flash",
+        contents: prompt,
+        config: {
+          tools: [{ googleMaps: {} }],
+          toolConfig: {
+            retrievalConfig: {
+              latLng: {
+                latitude: lat,
+                longitude: lng
+              }
+            }
+          }
         },
-        body: JSON.stringify({ lat, lng }),
       });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "Failed to fetch contacts from AI");
-      }
-
-      const data = await response.json();
-      text = data.text || "";
-      console.log("Raw Response Gemini (via Backend):", text);
+      text = response.text || "";
+      console.log("Raw Response Gemini:", text);
     } catch (error: any) {
-      console.error("Pesan Error Gemini (via Backend):", error.message);
-      console.error("Nama Error Gemini (via Backend):", error.name);
+      console.error("Pesan Error Gemini:", error.message);
+      console.error("Nama Error Gemini:", error.name);
+      // alert(`Gagal Fetch Gemini: ${error.message || "Error tidak diketahui"}`);
     }
 
     const contacts: EmergencyContact[] = [];
