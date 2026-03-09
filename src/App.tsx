@@ -33,6 +33,13 @@ export interface WeatherForecast {
   icon: string;
 }
 
+export interface DailyForecast {
+  day: string;
+  temp: number;
+  condition: string;
+  icon: string;
+}
+
 export interface WeatherInfo {
   location: string;
   temp: number;
@@ -43,6 +50,8 @@ export interface WeatherInfo {
   windSpeed?: number;
   windDirection?: string;
   forecasts?: WeatherForecast[];
+  dailyForecasts?: DailyForecast[];
+  lastUpdate?: string;
 }
 
 export interface ChatMessage {
@@ -114,32 +123,123 @@ export default function App() {
     return directions[code.toUpperCase()] || code;
   };
 
+  const calculateDailyForecasts = (allForecasts: any[]) => {
+    const daily: DailyForecast[] = [];
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const tomorrow = new Date(today);
+    tomorrow.setDate(today.getDate() + 1);
+
+    const dayAfter = new Date(today);
+    dayAfter.setDate(today.getDate() + 2);
+
+    const findBestForecast = (targetDate: Date) => {
+      const dayForecasts = allForecasts.filter(f => {
+        const d = new Date(f.datetime);
+        return d.getDate() === targetDate.getDate() && d.getMonth() === targetDate.getMonth();
+      });
+
+      if (dayForecasts.length === 0) return null;
+
+      // Try to find forecast near 12:00 PM
+      let best = dayForecasts[0];
+      let minDiff = Infinity;
+      dayForecasts.forEach(f => {
+        const d = new Date(f.datetime);
+        const diff = Math.abs(d.getHours() - 12);
+        if (diff < minDiff) {
+          minDiff = diff;
+          best = f;
+        }
+      });
+      return best;
+    };
+
+    const tomorrowForecast = findBestForecast(tomorrow);
+    if (tomorrowForecast) {
+      daily.push({
+        day: lang === 'id' ? 'Besok' : 'Tomorrow',
+        temp: Math.round(tomorrowForecast.t),
+        condition: tomorrowForecast.weather_desc,
+        icon: tomorrowForecast.image
+      });
+    }
+
+    const dayAfterForecast = findBestForecast(dayAfter);
+    if (dayAfterForecast) {
+      const dayName = new Intl.DateTimeFormat(lang === 'id' ? 'id-ID' : 'en-US', { weekday: 'long' }).format(dayAfter);
+      daily.push({
+        day: lang === 'id' ? 'Lusa' : dayName,
+        temp: Math.round(dayAfterForecast.t),
+        condition: dayAfterForecast.weather_desc,
+        icon: dayAfterForecast.image
+      });
+    }
+
+    return daily;
+  };
+
   const fetchWeather = async (lat: number, lon: number) => {
     setIsFetchingWeather(true);
     
     try {
-      const apiUrl = `https://openapi.de4a.space/api/weather/forecast?lat=${lat}&long=${lon}`;
+      const apiUrl = `https://cuacakita.vercel.app/api/weather/forecast?lat=${lat}&long=${lon}`;
       const weatherData = await fetchWithProxy(apiUrl);
       
-      if (weatherData && weatherData.status === 1 && weatherData.data && weatherData.data.length > 0) {
-        const locationInfo = weatherData.data[0].location;
-        const areaName = `${locationInfo.subdistrict}, ${locationInfo.city}`;
+      let allForecasts: any[] = [];
+      let areaName = "";
+      let lastUpdateStr = "";
+
+      // Handle new format (CuacaKita)
+      if (weatherData && weatherData.weather && weatherData.weather.data) {
+        const locationInfo = weatherData.weather.lokasi;
+        areaName = `${locationInfo.kecamatan || locationInfo.subdistrict}, ${locationInfo.kotkab || locationInfo.city}`;
         
-        // Flatten weather data
-        const allForecasts: any[] = [];
+        // Extract last update if available
+        if (weatherData.weather.data[0].issue && weatherData.weather.data[0].issue.timestamp) {
+          lastUpdateStr = new Date(weatherData.weather.data[0].issue.timestamp).toLocaleString('id-ID', {
+            day: '2-digit',
+            month: 'short',
+            hour: '2-digit',
+            minute: '2-digit'
+          });
+        }
+
+        weatherData.weather.data[0].cuaca.forEach((group: any[]) => {
+          group.forEach((item: any) => {
+            allForecasts.push(item);
+          });
+        });
+      } 
+      // Handle old format (OpenAPI)
+      else if (weatherData && weatherData.status === 1 && weatherData.data && weatherData.data.length > 0) {
+        const locationInfo = weatherData.data[0].location;
+        areaName = `${locationInfo.subdistrict}, ${locationInfo.city}`;
+        
         weatherData.data[0].weather.forEach((group: any[]) => {
           group.forEach((item: any) => {
             allForecasts.push(item);
           });
         });
+      }
+
+      if (allForecasts.length > 0) {
 
         // Sort by datetime
         allForecasts.sort((a, b) => new Date(a.datetime).getTime() - new Date(b.datetime).getTime());
 
         const now = new Date();
-        // Find current or next forecast
-        let currentIndex = allForecasts.findIndex(f => new Date(f.datetime) >= now);
-        if (currentIndex === -1) currentIndex = 0;
+        // Find closest forecast to now
+        let currentIndex = 0;
+        let minDiff = Infinity;
+        allForecasts.forEach((f, index) => {
+          const diff = Math.abs(new Date(f.datetime).getTime() - now.getTime());
+          if (diff < minDiff) {
+            minDiff = diff;
+            currentIndex = index;
+          }
+        });
 
         const current = allForecasts[currentIndex];
 
@@ -176,7 +276,9 @@ export default function App() {
           humidity: current.hu,
           windSpeed: current.ws,
           windDirection: current.wd,
-          forecasts: nextForecasts
+          forecasts: nextForecasts,
+          dailyForecasts: calculateDailyForecasts(allForecasts),
+          lastUpdate: lastUpdateStr
         });
       }
     } catch (error) {
@@ -821,12 +923,15 @@ Sambil menunggu analisis mendalam dari AI, berikut adalah langkah keselamatan st
                       <span className="text-[10px] font-bold text-slate-300 dark:text-slate-600">•</span>
                       <div className="flex items-center gap-1.5">
                         <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 truncate">{weather.location}</span>
-                        <a href="https://openapi.de4a.space/docs" target="_blank" rel="noopener noreferrer" className="text-[8px] font-bold text-slate-400 dark:text-slate-600 hover:text-blue-500 transition-colors uppercase tracking-tighter">OpenAPI</a>
+                        <a href="https://cuacakita.vercel.app" target="_blank" rel="noopener noreferrer" className="text-[8px] font-bold text-slate-400 dark:text-slate-600 hover:text-blue-500 transition-colors uppercase tracking-tighter">BMKG</a>
                       </div>
                     </div>
                     <div className="flex items-center gap-2 mt-0.5">
                       <span className="text-sm font-black text-slate-900 dark:text-white">{weather.temp}°C</span>
                       <span className="text-sm font-bold text-slate-600 dark:text-slate-300 truncate">{weather.condition}</span>
+                      {weather.lastUpdate && (
+                        <span className="text-[8px] font-bold text-slate-400 dark:text-slate-500 ml-1 uppercase tracking-tighter">Update: {weather.lastUpdate}</span>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -1318,7 +1423,7 @@ Sambil menunggu analisis mendalam dari AI, berikut adalah langkah keselamatan st
                     </h4>
                     <div className="flex flex-col items-end">
                       <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500">{weather.location}</span>
-                      <a href="https://openapi.de4a.space/docs" target="_blank" rel="noopener noreferrer" className="text-[8px] font-bold text-slate-300 dark:text-slate-600 hover:text-blue-500 transition-colors uppercase tracking-widest">Source: OpenAPI</a>
+                      <a href="https://cuacakita.vercel.app" target="_blank" rel="noopener noreferrer" className="text-[8px] font-bold text-slate-300 dark:text-slate-600 hover:text-blue-500 transition-colors uppercase tracking-widest">Source: BMKG</a>
                     </div>
                   </div>
                   
@@ -1334,6 +1439,9 @@ Sambil menunggu analisis mendalam dari AI, berikut adalah langkah keselamatan st
                           <span className="text-xl font-black text-slate-900 dark:text-white">{weather.temp}°C</span>
                           <span className="text-xs font-bold text-slate-600 dark:text-slate-400">{weather.condition}</span>
                         </div>
+                        {weather.lastUpdate && (
+                          <p className="text-[8px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-tighter mt-1">Update: {weather.lastUpdate}</p>
+                        )}
                       </div>
                     </div>
 
@@ -1372,6 +1480,29 @@ Sambil menunggu analisis mendalam dari AI, berikut adalah langkah keselamatan st
                             </div>
                             <span className="text-sm font-black text-slate-900 dark:text-white mb-0.5">{f.temp}°C</span>
                             <span className="text-[8px] font-bold text-slate-500 dark:text-slate-400 text-center leading-tight line-clamp-1">{f.condition}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Daily Forecast (Tomorrow & Day After) */}
+                  {weather.dailyForecasts && weather.dailyForecasts.length > 0 && (
+                    <div className="mt-4 pt-4 border-t border-slate-100 dark:border-slate-800">
+                      <p className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-3">Prakiraan Harian</p>
+                      <div className="grid grid-cols-2 gap-3">
+                        {weather.dailyForecasts.map((f, i) => (
+                          <div key={i} className="flex items-center justify-between bg-slate-50/50 dark:bg-slate-800/30 rounded-xl p-3 border border-slate-100 dark:border-slate-800 transition-colors">
+                            <div className="flex items-center gap-3">
+                              <div className="bg-white dark:bg-slate-900 p-2 rounded-lg shadow-xs transition-colors">
+                                {getWeatherIcon(f.condition, 20, f.icon)}
+                              </div>
+                              <div className="flex flex-col">
+                                <span className="text-[10px] font-black text-slate-900 dark:text-white">{f.day}</span>
+                                <span className="text-[8px] font-bold text-slate-500 dark:text-slate-400">{f.condition}</span>
+                              </div>
+                            </div>
+                            <span className="text-sm font-black text-slate-900 dark:text-white">{f.temp}°C</span>
                           </div>
                         ))}
                       </div>
@@ -1499,8 +1630,8 @@ Sambil menunggu analisis mendalam dari AI, berikut adalah langkah keselamatan st
               <span className="text-[10px] font-black uppercase tracking-[0.2em]">SiagaBencana © 2026</span>
             </div>
             <div className="flex items-center gap-3 text-[9px] font-bold text-slate-400 uppercase tracking-widest">
-              <span className="bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded text-slate-600 dark:text-slate-400 transition-colors">v1.9.1-stable</span>
-              <span>Patch: 8 Mar 2026, 21:20 WIB</span>
+              <span className="bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded text-slate-600 dark:text-slate-400 transition-colors">v1.9.7-stable</span>
+              <span>Patch: 9 Mar 2026, 08:02 WIB</span>
             </div>
           </div>
           <div className="flex items-center gap-2">
