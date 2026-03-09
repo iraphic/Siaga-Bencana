@@ -184,8 +184,10 @@ export default function App() {
     setIsFetchingWeather(true);
     
     try {
-      const apiUrl = `https://cuacakita.vercel.app/api/weather/forecast?lat=${lat}&long=${lon}`;
-      const weatherData = await fetchWithProxy(apiUrl);
+      const apiUrl = `/api/weather?lat=${lat}&lon=${lon}`;
+      const response = await fetch(apiUrl);
+      if (!response.ok) throw new Error("Backend weather API failed");
+      const weatherData = await response.json();
       
       let allForecasts: any[] = [];
       let areaName = "";
@@ -1630,8 +1632,8 @@ Sambil menunggu analisis mendalam dari AI, berikut adalah langkah keselamatan st
               <span className="text-[10px] font-black uppercase tracking-[0.2em]">SiagaBencana © 2026</span>
             </div>
             <div className="flex items-center gap-3 text-[9px] font-bold text-slate-400 uppercase tracking-widest">
-              <span className="bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded text-slate-600 dark:text-slate-400 transition-colors">v1.9.7-stable</span>
-              <span>Patch: 9 Mar 2026, 08:02 WIB</span>
+              <span className="bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded text-slate-600 dark:text-slate-400 transition-colors">v1.9.8-stable</span>
+              <span>Patch: 9 Mar 2026, 10:30 WIB</span>
             </div>
           </div>
           <div className="flex items-center gap-2">
