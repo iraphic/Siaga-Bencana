@@ -19,11 +19,25 @@ async function startServer() {
 
     try {
       const apiUrl = `https://cuacakita.vercel.app/api/weather/forecast?lat=${lat}&long=${lon}`;
-      const response = await axios.get(apiUrl);
-      res.json(response.data);
-    } catch (error) {
-      console.error("Error fetching weather from provider:", error);
-      res.status(500).json({ error: "Failed to fetch weather data" });
+      
+      const response = await fetch(apiUrl, {
+        headers: {
+          'Accept': 'application/json',
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+        }
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`Upstream error (${response.status}):`, errorText);
+        return res.status(response.status).json({ error: "Upstream API error", status: response.status });
+      }
+
+      const data = await response.json();
+      res.json(data);
+    } catch (error: any) {
+      console.error("Weather Proxy Error:", error);
+      res.status(500).json({ error: "Internal server error", message: error.message });
     }
   });
 

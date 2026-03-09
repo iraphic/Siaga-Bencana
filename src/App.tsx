@@ -186,8 +186,13 @@ export default function App() {
     try {
       const apiUrl = `/api/weather?lat=${lat}&lon=${lon}`;
       const response = await fetch(apiUrl);
-      if (!response.ok) throw new Error("Backend weather API failed");
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        console.error("Backend weather API error:", response.status, errorData);
+        throw new Error(`Backend weather API failed with status ${response.status}`);
+      }
       const weatherData = await response.json();
+      console.log("Weather Data received:", weatherData);
       
       let allForecasts: any[] = [];
       let areaName = "";
@@ -1632,8 +1637,8 @@ Sambil menunggu analisis mendalam dari AI, berikut adalah langkah keselamatan st
               <span className="text-[10px] font-black uppercase tracking-[0.2em]">SiagaBencana © 2026</span>
             </div>
             <div className="flex items-center gap-3 text-[9px] font-bold text-slate-400 uppercase tracking-widest">
-              <span className="bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded text-slate-600 dark:text-slate-400 transition-colors">v1.9.9-stable</span>
-              <span>Patch: 9 Mar 2026, 10:40 WIB</span>
+              <span className="bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded text-slate-600 dark:text-slate-400 transition-colors">v1.9.10-stable</span>
+              <span>Patch: 9 Mar 2026, 10:57 WIB</span>
             </div>
           </div>
           <div className="flex items-center gap-2">
