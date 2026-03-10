@@ -906,15 +906,16 @@ Sambil menunggu analisis mendalam dari AI, berikut adalah langkah keselamatan st
       {/* Weather Banner */}
       <AnimatePresence>
         {weather && (
-          <motion.div 
+          <motion.div
             initial={{ height: 0, opacity: 0 }}
             animate={{ height: 'auto', opacity: 1 }}
             className="bg-slate-100 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 overflow-hidden transition-colors"
           >
             <div className="max-w-5xl mx-auto px-4 py-3">
+              {/* Header Row */}
               <div className="flex items-center justify-between gap-4 mb-3">
                 <div className="flex items-center gap-3 overflow-hidden">
-                  <div className="bg-white dark:bg-slate-900 p-2 rounded-xl shadow-sm transition-colors shrink-0">
+                  <div className="bg-white dark:bg-slate-900 p-2 md:p-2.5 rounded-xl shadow-sm transition-colors shrink-0">
                     {getWeatherIcon(weather.condition, 20, weather.icon)}
                   </div>
                   <div className="min-w-0">
@@ -935,7 +936,7 @@ Sambil menunggu analisis mendalam dari AI, berikut adalah langkah keselamatan st
                     </div>
                   </div>
                 </div>
-                <button 
+                <button
                   onClick={() => setWeather(null)}
                   className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 text-[10px] font-black uppercase tracking-widest transition-colors shrink-0"
                 >
@@ -943,42 +944,45 @@ Sambil menunggu analisis mendalam dari AI, berikut adalah langkah keselamatan st
                 </button>
               </div>
 
-              {/* Weather Detail Cards */}
-              <div className="grid grid-cols-3 gap-2 mb-4">
-                <div className="bg-slate-50 dark:bg-slate-800/50 p-2.5 rounded-2xl border border-slate-100 dark:border-slate-800 flex flex-col items-center transition-colors">
-                  <Thermometer size={14} className="text-blue-500 mb-1" />
-                  <span className="text-[8px] font-bold text-slate-400 uppercase tracking-tighter mb-0.5">{t.humidity}</span>
-                  <span className="text-xs font-black text-slate-900 dark:text-white">{weather.humidity}%</span>
+              {/* Desktop: detail cards + forecast in one row; Mobile: stacked */}
+              <div className="flex flex-col md:flex-row md:items-start md:gap-6">
+                {/* Weather Detail Cards */}
+                <div className="grid grid-cols-3 gap-2 mb-4 md:mb-0 md:shrink-0 md:w-[260px]">
+                  <div className="bg-slate-50 dark:bg-slate-800/50 p-2.5 rounded-2xl border border-slate-100 dark:border-slate-800 flex flex-col items-center transition-colors">
+                    <Thermometer size={14} className="text-blue-500 mb-1" />
+                    <span className="text-[8px] font-bold text-slate-400 uppercase tracking-tighter mb-0.5">{t.humidity}</span>
+                    <span className="text-xs font-black text-slate-900 dark:text-white">{weather.humidity}%</span>
+                  </div>
+                  <div className="bg-slate-50 dark:bg-slate-800/50 p-2.5 rounded-2xl border border-slate-100 dark:border-slate-800 flex flex-col items-center transition-colors">
+                    <Wind size={14} className="text-emerald-500 mb-1" />
+                    <span className="text-[8px] font-bold text-slate-400 uppercase tracking-tighter mb-0.5">{t.wind_speed}</span>
+                    <span className="text-xs font-black text-slate-900 dark:text-white">{weather.windSpeed} km/h</span>
+                  </div>
+                  <div className="bg-slate-50 dark:bg-slate-800/50 p-2.5 rounded-2xl border border-slate-100 dark:border-slate-800 flex flex-col items-center transition-colors">
+                    <Compass size={14} className="text-orange-500 mb-1" />
+                    <span className="text-[8px] font-bold text-slate-400 uppercase tracking-tighter mb-0.5">{t.wind_direction}</span>
+                    <span className="text-xs font-black text-slate-900 dark:text-white truncate w-full text-center">
+                      {weather.windDirection ? getWindDirection(weather.windDirection) : '-'}
+                    </span>
+                  </div>
                 </div>
-                <div className="bg-slate-50 dark:bg-slate-800/50 p-2.5 rounded-2xl border border-slate-100 dark:border-slate-800 flex flex-col items-center transition-colors">
-                  <Wind size={14} className="text-emerald-500 mb-1" />
-                  <span className="text-[8px] font-bold text-slate-400 uppercase tracking-tighter mb-0.5">{t.wind_speed}</span>
-                  <span className="text-xs font-black text-slate-900 dark:text-white">{weather.windSpeed} km/h</span>
-                </div>
-                <div className="bg-slate-50 dark:bg-slate-800/50 p-2.5 rounded-2xl border border-slate-100 dark:border-slate-800 flex flex-col items-center transition-colors">
-                  <Compass size={14} className="text-orange-500 mb-1" />
-                  <span className="text-[8px] font-bold text-slate-400 uppercase tracking-tighter mb-0.5">{t.wind_direction}</span>
-                  <span className="text-xs font-black text-slate-900 dark:text-white truncate w-full text-center">
-                    {weather.windDirection ? getWindDirection(weather.windDirection) : '-'}
-                  </span>
-                </div>
-              </div>
 
-              {/* Forecast Row */}
-              {weather.forecasts && weather.forecasts.length > 0 && (
-                <div className="flex items-center gap-3 overflow-x-auto pb-1 no-scrollbar">
-                  {weather.forecasts.map((f, i) => (
-                    <div key={i} className="flex flex-col items-center min-w-[70px] bg-white/40 dark:bg-slate-900/40 rounded-xl py-2 px-3 border border-slate-200/50 dark:border-slate-700/50 transition-colors">
-                      <span className="text-[8px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-tighter mb-1">{f.time}</span>
-                      <div className="flex items-center gap-1.5 mb-1">
-                        {getWeatherIcon(f.condition, 14, f.icon)}
-                        <span className="text-xs font-black text-slate-900 dark:text-white">{f.temp}°</span>
+                {/* Forecast Row */}
+                {weather.forecasts && weather.forecasts.length > 0 && (
+                  <div className="flex items-center gap-3 overflow-x-auto pb-1 no-scrollbar md:flex-1 md:min-w-0">
+                    {weather.forecasts.map((f, i) => (
+                      <div key={i} className="flex flex-col items-center min-w-[70px] md:min-w-[80px] md:flex-1 bg-white/40 dark:bg-slate-900/40 rounded-xl py-2 px-3 border border-slate-200/50 dark:border-slate-700/50 transition-colors">
+                        <span className="text-[8px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-tighter mb-1">{f.time}</span>
+                        <div className="flex items-center gap-1.5 mb-1">
+                          {getWeatherIcon(f.condition, 14, f.icon)}
+                          <span className="text-xs font-black text-slate-900 dark:text-white">{f.temp}°</span>
+                        </div>
+                        <span className="text-[8px] font-bold text-slate-500 dark:text-slate-400 truncate w-full text-center leading-tight">{f.condition}</span>
                       </div>
-                      <span className="text-[8px] font-bold text-slate-500 dark:text-slate-400 truncate w-full text-center leading-tight">{f.condition}</span>
-                    </div>
-                  ))}
-                </div>
-              )}
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
           </motion.div>
         )}
