@@ -1,6 +1,3 @@
-
-import { GoogleGenAI } from "@google/genai";
-
 export interface EmergencyContact {
   name: string;
   number: string;
@@ -29,69 +26,29 @@ export async function getNearbyEmergencyContacts(lat: number, lng: number): Prom
       } catch (error: any) {
         console.error("Pesan Error Geocoding:", error.message);
         console.error("Nama Error Geocoding:", error.name);
-        // alert(`Gagal Fetch Geocoding: ${error.message || "Error tidak diketahui"}`);
         console.warn("BigDataCloud geocoding failed, falling back to Gemini");
       }
     }
 
-    // 2. Use Gemini with Google Maps to find specific contacts
-    const apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey) {
-      console.error("GEMINI_API_KEY is missing");
-      return {
-        contacts: [
-          { name: 'Ambulans (Nasional)', number: '118', type: 'hospital' },
-          { name: 'Polisi (Nasional)', number: '110', type: 'police' },
-          { name: 'Pemadam Kebakaran (Nasional)', number: '113', type: 'fire' },
-          { name: 'Basarnas (Nasional)', number: '115', type: 'sar' },
-        ],
-        locationName: locationName
-      };
-    }
-
-    const ai = new GoogleGenAI({ apiKey });
-    
-    const prompt = `Cari daftar Rumah Sakit (RS), Polsek (Kantor Polisi), Pemadam Kebakaran (Damkar), dan Basarnas (Kantor SAR) terdekat di sekitar koordinat ${lat}, ${lng}. 
-    HANYA kembalikan 4 tipe ini. Pastikan untuk menemukan Polsek/Kantor Polisi terdekat.
-    
-    Tentukan juga nama area (kecamatan atau kelurahan) dari koordinat tersebut dan tulis di baris pertama dengan format: AREA: [Nama Area]
-    
-    Berikan daftar dalam format baris per baris seperti ini:
-    [Tipe] Nama Tempat | Nomor Telepon | Alamat
-    
-    Contoh format:
-    AREA: Pancoran
-    [RS] RS Medika | 0211234567 | Jl. Merdeka No. 1
-    [Polisi] Polsek Kebayoran | 0217654321 | Jl. Polisi No. 2
-    [Damkar] Damkar Sektor X | 0219876543 | Jl. Api No. 3
-    [SAR] Basarnas Jakarta | 0215501512 | Jl. SAR No. 4
-    
-    Pastikan nomor telepon adalah nomor telepon lokal (misalnya berawalan 021 untuk Jakarta, atau kode area lokal lainnya sesuai koordinat).
-    Hanya berikan daftar tersebut, maksimal 8 entri (2 per tipe jika tersedia).`;
-
+    // 2. Use backend proxy to call Gemini for emergency contacts
     let text = "";
     try {
-      const response = await ai.models.generateContent({
-        model: "gemini-2.5-flash",
-        contents: prompt,
-        config: {
-          tools: [{ googleMaps: {} }],
-          toolConfig: {
-            retrievalConfig: {
-              latLng: {
-                latitude: lat,
-                longitude: lng
-              }
-            }
-          }
-        },
+      const response = await fetch("/api/gemini/contacts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ lat, lng }),
       });
-      text = response.text || "";
-      console.log("Raw Response Gemini:", text);
+
+      if (response.ok) {
+        const data = await response.json();
+        text = data.text || "";
+        console.log("Raw Response Gemini (via proxy):", text);
+      } else {
+        console.error("Backend contacts API error:", response.status);
+      }
     } catch (error: any) {
       console.error("Pesan Error Gemini:", error.message);
       console.error("Nama Error Gemini:", error.name);
-      // alert(`Gagal Fetch Gemini: ${error.message || "Error tidak diketahui"}`);
     }
 
     const contacts: EmergencyContact[] = [];
@@ -104,13 +61,13 @@ export async function getNearbyEmergencyContacts(lat: number, lng: number): Prom
         geminiLocationName = line.replace('AREA:', '').trim();
         continue;
       }
-      
+
       if (line.includes('|')) {
         const parts = line.split('|').map(p => p.trim());
         if (parts.length >= 2) {
           const typePart = parts[0].toLowerCase();
           let type: 'hospital' | 'police' | 'fire' | 'sar' | 'general' = 'general';
-          
+
           if (typePart.includes('[rs]') || typePart.includes('rumah sakit')) type = 'hospital';
           else if (typePart.includes('[polisi]') || typePart.includes('polsek')) type = 'police';
           else if (typePart.includes('[damkar]') || typePart.includes('pemadam')) type = 'fire';
@@ -130,7 +87,7 @@ export async function getNearbyEmergencyContacts(lat: number, lng: number): Prom
       }
     }
 
-    // Use Gemini's location name if Nominatim failed or returned "Area Anda"
+    // Use Gemini's location name if geocoding failed or returned "Area Anda"
     const finalLocationName = (locationName === "Area Anda" && geminiLocationName) ? geminiLocationName : locationName;
 
     // Fallback if Gemini didn't return useful data
