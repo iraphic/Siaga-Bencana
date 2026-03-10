@@ -61,14 +61,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return;
     }
     if (error.message?.includes("403") || error.message?.includes("PERMISSION_DENIED")) {
-      res.status(403).json({ error: "permission_denied" });
+      res.status(403).json({ error: "permission_denied", detail: error.message });
       return;
     }
     if (error.message?.includes("404")) {
-      res.status(404).json({ error: "model_not_found" });
+      res.status(404).json({ error: "model_not_found", detail: error.message });
       return;
     }
 
-    res.status(500).json({ error: "internal_error" });
+    res.status(500).json({ error: "internal_error", detail: error.message });
   }
 }

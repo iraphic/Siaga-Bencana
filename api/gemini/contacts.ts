@@ -60,6 +60,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     res.status(200).json({ text: response.text || "" });
   } catch (error: any) {
     console.error("Gemini contacts API error:", error.message);
-    res.status(500).json({ error: "internal_error" });
+    res.status(500).json({ error: "internal_error", detail: error.message });
   }
 }

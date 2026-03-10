@@ -8,6 +8,7 @@ export const getEmergencyAdvice = async (query: string, location?: { lat: number
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
+      console.error("Advice API error:", response.status, errorData);
 
       if (response.status === 429 || errorData.error === "quota") {
         return "Maaf, sistem sedang sibuk karena banyaknya permintaan. Mohon tunggu sebentar atau ikuti prosedur keselamatan standar.";
