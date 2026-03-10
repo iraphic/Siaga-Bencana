@@ -3,14 +3,10 @@
   "name": "SiagaBencana",
   "icons": [
     {
-      "src": "https://picsum.photos/seed/emergency/192/192",
-      "type": "image/png",
-      "sizes": "192x192"
-    },
-    {
-      "src": "https://picsum.photos/seed/emergency/512/512",
-      "type": "image/png",
-      "sizes": "512x512"
+      "src": "/favicon.svg",
+      "type": "image/svg+xml",
+      "sizes": "any",
+      "purpose": "any"
     }
   ],
   "start_url": ".",
