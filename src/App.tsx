@@ -184,14 +184,14 @@ export default function App() {
     setIsFetchingWeather(true);
     
     try {
-      const apiUrl = `https://cuacakita.vercel.app/api/weather/forecast?lat=${lat}&long=${lon}`;
+      const apiUrl = `https://openapi.de4a.space/api/weather/forecast?lat=${lat}&long=${lon}`;
       const weatherData = await fetchWithProxy(apiUrl);
       
       let allForecasts: any[] = [];
       let areaName = "";
       let lastUpdateStr = "";
 
-      // Handle new format (CuacaKita)
+      // Handle new format (DE4A OpenAPI)
       if (weatherData && weatherData.weather && weatherData.weather.data) {
         const locationInfo = weatherData.weather.lokasi;
         areaName = `${locationInfo.kecamatan || locationInfo.subdistrict}, ${locationInfo.kotkab || locationInfo.city}`;
@@ -924,7 +924,7 @@ Sambil menunggu analisis mendalam dari AI, berikut adalah langkah keselamatan st
                       <span className="text-[10px] font-bold text-slate-300 dark:text-slate-600">•</span>
                       <div className="flex items-center gap-1.5">
                         <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 truncate">{weather.location}</span>
-                        <a href="https://cuacakita.vercel.app" target="_blank" rel="noopener noreferrer" className="text-[8px] font-bold text-slate-400 dark:text-slate-600 hover:text-blue-500 transition-colors uppercase tracking-tighter">BMKG</a>
+                        <a href="https://openapi.de4a.space" target="_blank" rel="noopener noreferrer" className="text-[8px] font-bold text-slate-400 dark:text-slate-600 hover:text-blue-500 transition-colors uppercase tracking-tighter">DE4A</a>
                       </div>
                     </div>
                     <div className="flex items-center gap-2 mt-0.5">
@@ -1427,7 +1427,7 @@ Sambil menunggu analisis mendalam dari AI, berikut adalah langkah keselamatan st
                     </h4>
                     <div className="flex flex-col items-end">
                       <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500">{weather.location}</span>
-                      <a href="https://cuacakita.vercel.app" target="_blank" rel="noopener noreferrer" className="text-[8px] font-bold text-slate-300 dark:text-slate-600 hover:text-blue-500 transition-colors uppercase tracking-widest">Source: BMKG</a>
+                      <a href="https://openapi.de4a.space" target="_blank" rel="noopener noreferrer" className="text-[8px] font-bold text-slate-300 dark:text-slate-600 hover:text-blue-500 transition-colors uppercase tracking-widest">Source: DE4A</a>
                     </div>
                   </div>
                   
