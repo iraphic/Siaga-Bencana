@@ -924,7 +924,7 @@ Sambil menunggu analisis mendalam dari AI, berikut adalah langkah keselamatan st
                       <span className="text-[10px] font-bold text-slate-300 dark:text-slate-600">•</span>
                       <div className="flex items-center gap-1.5">
                         <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400 truncate">{weather.location}</span>
-                        <a href="https://openapi.de4a.space" target="_blank" rel="noopener noreferrer" className="text-[8px] font-bold text-slate-400 dark:text-slate-600 hover:text-blue-500 transition-colors uppercase tracking-tighter">DE4A</a>
+                        <a href="https://openapi.de4a.space/docs#GET/api/weather/forecast" target="_blank" rel="noopener noreferrer" className="text-[8px] font-bold text-slate-400 dark:text-slate-600 hover:text-blue-500 transition-colors uppercase tracking-tighter">DE4A</a>
                       </div>
                     </div>
                     <div className="flex items-center gap-2 mt-0.5">
@@ -1427,7 +1427,7 @@ Sambil menunggu analisis mendalam dari AI, berikut adalah langkah keselamatan st
                     </h4>
                     <div className="flex flex-col items-end">
                       <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500">{weather.location}</span>
-                      <a href="https://openapi.de4a.space" target="_blank" rel="noopener noreferrer" className="text-[8px] font-bold text-slate-300 dark:text-slate-600 hover:text-blue-500 transition-colors uppercase tracking-widest">Source: DE4A</a>
+                      <a href="https://openapi.de4a.space/docs#GET/api/weather/forecast" target="_blank" rel="noopener noreferrer" className="text-[8px] font-bold text-slate-300 dark:text-slate-600 hover:text-blue-500 transition-colors uppercase tracking-widest">Source: DE4A</a>
                     </div>
                   </div>
                   
